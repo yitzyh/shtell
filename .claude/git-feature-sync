@@ -1,0 +1,104 @@
+#!/bin/bash
+
+# Claude Code slash command: /git-feature-sync
+# Full workflow: commit current work → merge main into current branch → merge current branch to main → return to feature branch
+
+set -e  # Exit on any error
+
+echo "🚀 Git Feature Sync Workflow"
+echo "============================="
+
+current_branch=$(git branch --show-current)
+current_path=$(pwd)
+
+# Validate we're not on main
+if [ "$current_branch" = "main" ]; then
+    echo "❌ Error: You're currently on main branch. Switch to a feature branch first."
+    exit 1
+fi
+
+echo "📍 Starting sync from: $current_branch"
+echo "📂 In worktree: $current_path"
+echo ""
+
+# Step 1: Check and commit current work
+echo "🔍 Step 1: Checking for uncommitted changes..."
+if [ -n "$(git status --porcelain)" ]; then
+    echo "📝 Found uncommitted changes. Creating commit..."
+    git add -A
+    
+    # Prompt for commit message
+    echo ""
+    echo "💬 Enter commit message (or press Enter for auto-generated message):"
+    read -r commit_message
+    
+    if [ -z "$commit_message" ]; then
+        commit_message="WIP: Auto-commit before sync - $(date '+%Y-%m-%d %H:%M')"
+        echo "📝 Using auto-generated message: $commit_message"
+    fi
+    
+    git commit -m "$commit_message"
+    echo "✅ Changes committed successfully"
+else
+    echo "✅ Working tree is clean"
+fi
+
+echo ""
+
+# Step 2: Find and switch to main worktree
+echo "🔄 Step 2: Switching to main worktree..."
+main_worktree=$(git worktree list | grep '\[main\]' | awk '{print $1}')
+
+if [ -z "$main_worktree" ]; then
+    echo "❌ Error: Could not find main worktree"
+    exit 1
+fi
+
+echo "📂 Main worktree found at: $main_worktree"
+cd "$main_worktree"
+echo "✅ Switched to main worktree"
+
+# Step 3: Update main branch
+echo ""
+echo "📥 Step 3: Updating main branch..."
+git checkout main
+git pull origin main || echo "⚠️ Could not pull from origin (continuing anyway)"
+echo "✅ Main branch updated"
+
+# Step 4: Merge feature branch into main
+echo ""
+echo "🔀 Step 4: Merging $current_branch into main..."
+git merge "$current_branch" --no-edit || {
+    echo "❌ Merge failed. You may need to resolve conflicts manually."
+    echo "🏠 You are now in the main worktree: $main_worktree"
+    exit 1
+}
+echo "✅ Feature branch merged into main"
+
+# Step 5: Push main to origin
+echo ""
+echo "📤 Step 5: Pushing main to origin..."
+git push origin main || echo "⚠️ Could not push to origin (you may need to push manually)"
+echo "✅ Main branch pushed"
+
+# Step 6: Return to feature worktree and update
+echo ""
+echo "🏠 Step 6: Returning to feature worktree..."
+cd "$current_path"
+echo "✅ Back in feature worktree: $current_path"
+
+# Step 7: Update feature branch with latest main
+echo ""
+echo "🔄 Step 7: Updating feature branch with latest main..."
+git pull origin main --no-edit || echo "⚠️ Could not pull main into feature branch"
+echo "✅ Feature branch updated with latest main"
+
+echo ""
+echo "🎉 Sync Complete!"
+echo "=================="
+echo "✅ Feature '$current_branch' has been successfully synced with main"
+echo "✅ Main branch contains your feature changes"
+echo "✅ You're back on your feature branch for continued development"
+echo ""
+echo "📊 Current status:"
+git log --oneline -3 --decorate

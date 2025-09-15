@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Claude Code slash command: /git-branches
+# List all branches and worktrees with their locations
+
+echo "🌿 Git Branches & Worktrees"
+echo "==========================="
+
+# Get current branch for highlighting
+current_branch=$(git branch --show-current)
+
+echo "📍 All Worktrees:"
+echo ""
+git worktree list | while read line; do
+    if [[ "$line" == *"$current_branch"* ]]; then
+        echo "👉 $line  ← CURRENT"
+    else
+        echo "   $line"
+    fi
+done
+
+echo ""
+echo "🌿 All Branches:"
+echo ""
+
+# List local branches with status
+git for-each-ref --format='%(refname:short) %(upstream:short) %(upstream:track)' refs/heads | while read branch upstream track; do
+    # Check if branch has a worktree
+    worktree_path=""
+    if git worktree list | grep -q "\[$branch\]"; then
+        worktree_path=$(git worktree list | grep "\[$branch\]" | awk '{print $1}')
+        worktree_indicator="🌳"
+    else
+        worktree_indicator="  "
+    fi
+    
+    # Highlight current branch
+    if [ "$branch" = "$current_branch" ]; then
+        echo "👉 $worktree_indicator $branch $track"
+        if [ -n "$worktree_path" ]; then
+            echo "      └── Worktree: $worktree_path"
+        fi
+    else
+        echo "   $worktree_indicator $branch $track"
+        if [ -n "$worktree_path" ]; then
+            echo "      └── Worktree: $worktree_path"
+        fi
+    fi
+done
+
+echo ""
+echo "🔗 Remote Branches:"
+git branch -r --format='   %(refname:short)' | head -10

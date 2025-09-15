@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# Claude Code slash command: /git-worktrees
+# Show all worktrees and which branches they're on
+
+echo "🌳 Git Worktrees Overview"
+echo "========================="
+
+current_path=$(pwd)
+current_branch=$(git branch --show-current)
+
+echo "📍 Currently in: $current_path"
+echo "🌿 Currently on: $current_branch"
+echo ""
+
+echo "🗂️  All Worktrees:"
+echo ""
+
+git worktree list | while IFS= read -r line; do
+    # Parse the worktree line: path commit [branch]
+    path=$(echo "$line" | awk '{print $1}')
+    commit=$(echo "$line" | awk '{print $2}')
+    branch=$(echo "$line" | grep -o '\[.*\]' | tr -d '[]')
+    
+    # Check if this is the current worktree
+    if [ "$path" = "$current_path" ]; then
+        echo "👉 $path"
+        echo "   ├── Branch: $branch (CURRENT)"
+    else
+        echo "📁 $path"
+        echo "   ├── Branch: $branch"
+    fi
+    
+    echo "   ├── Commit: $commit"
+    
+    # Get branch status if it's not the current worktree
+    if [ "$path" != "$current_path" ] && [ -n "$branch" ]; then
+        cd "$path" 2>/dev/null && {
+            # Check for uncommitted changes
+            if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+                echo "   ├── Status: 🔄 Has uncommitted changes"
+            elif [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+                echo "   ├── Status: 📝 Has untracked files"
+            else
+                echo "   ├── Status: ✅ Clean"
+            fi
+            
+            # Check ahead/behind status
+            if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+                ahead=$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+                behind=$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
+                if [ "$ahead" -gt 0 ] && [ "$behind" -gt 0 ]; then
+                    echo "   └── Sync: ⚠️ Ahead $ahead, behind $behind"
+                elif [ "$ahead" -gt 0 ]; then
+                    echo "   └── Sync: ⬆️ Ahead $ahead"
+                elif [ "$behind" -gt 0 ]; then
+                    echo "   └── Sync: ⬇️ Behind $behind"
+                else
+                    echo "   └── Sync: ✅ Up to date"
+                fi
+            else
+                echo "   └── Sync: ℹ️ No upstream"
+            fi
+            cd - >/dev/null
+        } || echo "   └── Status: ❌ Cannot access"
+    else
+        echo "   └── (Details shown above)"
+    fi
+    echo ""
+done

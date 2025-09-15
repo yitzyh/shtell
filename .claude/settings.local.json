@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export:*)",
+      "Read(//Users/isaacherskowitz/swift/_dumflow/DumFlow-pull-forward/DumFlow/Features/BrowseForward/Models/**)",
+      "Read(//Users/isaacherskowitz/swift/_dumflow/DumFlow-pull-forward/DumFlow/Features/BrowseForward/Services/**)",
+      "Read(//Users/isaacherskowitz/swift/_dumflow/DumFlow-pull-forward/DumFlow/Services/**)",
+      "Bash(xcodebuild:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Read(//Users/isaacherskowitz/Swift/_DumFlow/DumFlow-pull-forward/**)",
+      "Bash(rm:*)",
+      "Read(//Users/isaacherskowitz/Downloads/iCloud Photos-2/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

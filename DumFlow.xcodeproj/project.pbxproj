@@ -1,0 +1,894 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 90;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		6D3A648F2E138CBD0009991D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6D7D6FA72BDEEBB0002DF0C9 /* Assets.xcassets */; };
+		6D48CFB82E6D2EBF00E87D7D /* TrendPageViewSFSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D48CFB72E6D2EBF00E87D7D /* TrendPageViewSFSymbols.swift */; };
+		6D963F8F2E42C67A00A0C1A1 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6D963F8E2E42C67A00A0C1A1 /* GoogleService-Info.plist */; };
+		6D963F902E42C67A00A0C1A1 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 6D963F8E2E42C67A00A0C1A1 /* GoogleService-Info.plist */; };
+		6DAECD362E2085E300681FE8 /* WebPageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DAECD352E2085E300681FE8 /* WebPageService.swift */; };
+		6DAECDAB2E230B2800681FE8 /* FollowService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DAECDA92E230B2800681FE8 /* FollowService.swift */; };
+		6DCACFBE2DF4AC9400CF361E /* DumFlowShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6DCACFB42DF4AC9400CF361E /* DumFlowShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6DD454202E32925E0065A409 /* WikipediaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DD4541F2E32925E0065A409 /* WikipediaService.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6D75F03B2DBB24D10032D1A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D7D6F982BDEEBAF002DF0C9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6D75F02C2DBB24D00032D1A6;
+			remoteInfo = DumFlow;
+		};
+		6D75F0452DBB24D10032D1A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D7D6F982BDEEBAF002DF0C9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6D75F02C2DBB24D00032D1A6;
+			remoteInfo = DumFlow;
+		};
+		6DCACFBC2DF4AC9400CF361E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6D7D6F982BDEEBAF002DF0C9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6DCACFB32DF4AC9400CF361E;
+			remoteInfo = DumFlowShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6D531CD22DCABECB002230FF /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = Resources;
+			files = (
+			);
+		};
+		6DCACFC32DF4AC9400CF361E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				6DCACFBE2DF4AC9400CF361E /* DumFlowShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		6D2D26C72D03697D002A7177 /* DumFlow.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DumFlow.entitlements; sourceTree = "<group>"; };
+		6D48CFB72E6D2EBF00E87D7D /* TrendPageViewSFSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendPageViewSFSymbols.swift; sourceTree = "<group>"; };
+		6D75F02D2DBB24D00032D1A6 /* DumFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DumFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D75F03A2DBB24D10032D1A6 /* DumFlowTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DumFlowTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D75F0442DBB24D10032D1A6 /* DumFlowUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DumFlowUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6D7D6FA72BDEEBB0002DF0C9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		6D7D6FAA2BDEEBB0002DF0C9 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		6D963F8E2E42C67A00A0C1A1 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		6DA5A29F2C5C159F00AF39F1 /* iPhone_Portrait.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = iPhone_Portrait.png; sourceTree = "<group>"; };
+		6DAECD352E2085E300681FE8 /* WebPageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPageService.swift; sourceTree = "<group>"; };
+		6DAECDA92E230B2800681FE8 /* FollowService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowService.swift; sourceTree = "<group>"; };
+		6DB7F5682C38494D008E16CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6DCACFB42DF4AC9400CF361E /* DumFlowShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DumFlowShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6DD4541F2E32925E0065A409 /* WikipediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikipediaService.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6D01A0282E67E01700F5BA91 /* Exceptions for "DumFlowShareExtension" folder in "DumFlowShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6DCACFB32DF4AC9400CF361E /* DumFlowShareExtension */;
+		};
+		6D01A1E32E67FB0B00F5BA91 /* Exceptions for "Models" folder in "DumFlow" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				CK_User.swift,
+				UserFollow.swift,
+			);
+			target = 6D75F02C2DBB24D00032D1A6 /* DumFlow */;
+		};
+		6D01A1E62E67FB9B00F5BA91 /* Exceptions for "ViewModels" folder in "DumFlow" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				UserViewModel.swift,
+			);
+			target = 6D75F02C2DBB24D00032D1A6 /* DumFlow */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		6D061D422DFD4A07002CFD1D /* CloudKit */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CloudKit;
+			sourceTree = "<group>";
+		};
+		6D3202B72E2F636000FAEE97 /* Features */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Features;
+			sourceTree = "<group>";
+		};
+		6D3202CC2E2F642A00FAEE97 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		6D3202D22E2FE9EF00FAEE97 /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App;
+			sourceTree = "<group>";
+		};
+		6D3202D32E2FE9FF00FAEE97 /* Core */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Core;
+			sourceTree = "<group>";
+		};
+		6D439DE42D2CF335001EB980 /* ViewModels */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6D01A1E62E67FB9B00F5BA91 /* Exceptions for "ViewModels" folder in "DumFlow" target */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		6D439DE92D2CF4DF001EB980 /* Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6D01A1E32E67FB0B00F5BA91 /* Exceptions for "Models" folder in "DumFlow" target */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		6D75F03D2DBB24D10032D1A6 /* DumFlowTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DumFlowTests;
+			sourceTree = "<group>";
+		};
+		6D75F0472DBB24D10032D1A6 /* DumFlowUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DumFlowUITests;
+			sourceTree = "<group>";
+		};
+		6D85D3272DD2CBCA00E8AD05 /* Views */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Views;
+			sourceTree = "<group>";
+		};
+		6DCACFB52DF4AC9400CF361E /* DumFlowShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6D01A0282E67E01700F5BA91 /* Exceptions for "DumFlowShareExtension" folder in "DumFlowShareExtension" target */,
+			);
+			path = DumFlowShareExtension;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6D75F02A2DBB24D00032D1A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		6D75F0372DBB24D10032D1A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		6D75F0412DBB24D10032D1A6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		6DCACFB12DF4AC9400CF361E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		6D7D6F972BDEEBAF002DF0C9 = {
+			isa = PBXGroup;
+			children = (
+				6D7D6FA22BDEEBAF002DF0C9 /* DumFlow */,
+				6D75F03D2DBB24D10032D1A6 /* DumFlowTests */,
+				6D75F0472DBB24D10032D1A6 /* DumFlowUITests */,
+				6DCACFB52DF4AC9400CF361E /* DumFlowShareExtension */,
+				6D7D6FA12BDEEBAF002DF0C9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6D7D6FA12BDEEBAF002DF0C9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6D75F02D2DBB24D00032D1A6 /* DumFlow.app */,
+				6D75F03A2DBB24D10032D1A6 /* DumFlowTests.xctest */,
+				6D75F0442DBB24D10032D1A6 /* DumFlowUITests.xctest */,
+				6DCACFB42DF4AC9400CF361E /* DumFlowShareExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6D7D6FA22BDEEBAF002DF0C9 /* DumFlow */ = {
+			isa = PBXGroup;
+			children = (
+				6D48CFB72E6D2EBF00E87D7D /* TrendPageViewSFSymbols.swift */,
+				6D3202D22E2FE9EF00FAEE97 /* App */,
+				6D3202D32E2FE9FF00FAEE97 /* Core */,
+				6D3202B72E2F636000FAEE97 /* Features */,
+				6D061D422DFD4A07002CFD1D /* CloudKit */,
+				6D3202CC2E2F642A00FAEE97 /* Shared */,
+				6DAECDAA2E230B2800681FE8 /* Services */,
+				6D2D26C72D03697D002A7177 /* DumFlow.entitlements */,
+				6D85D3272DD2CBCA00E8AD05 /* Views */,
+				6D439DE92D2CF4DF001EB980 /* Models */,
+				6D439DE42D2CF335001EB980 /* ViewModels */,
+				6D7D6FA72BDEEBB0002DF0C9 /* Assets.xcassets */,
+				6DB7F5682C38494D008E16CE /* Info.plist */,
+				6D7D6FA92BDEEBB0002DF0C9 /* Preview Content */,
+				6D963F8E2E42C67A00A0C1A1 /* GoogleService-Info.plist */,
+			);
+			path = DumFlow;
+			sourceTree = "<group>";
+		};
+		6D7D6FA92BDEEBB0002DF0C9 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				6D7D6FAA2BDEEBB0002DF0C9 /* Preview Assets.xcassets */,
+				6DA5A29F2C5C159F00AF39F1 /* iPhone_Portrait.png */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		6DAECDAA2E230B2800681FE8 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				6DD4541F2E32925E0065A409 /* WikipediaService.swift */,
+				6DAECDA92E230B2800681FE8 /* FollowService.swift */,
+				6DAECD352E2085E300681FE8 /* WebPageService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6D75F02C2DBB24D00032D1A6 /* DumFlow */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D75F0522DBB24D10032D1A6 /* Build configuration list for PBXNativeTarget "DumFlow" */;
+			buildPhases = (
+				6D75F0292DBB24D00032D1A6 /* Sources */,
+				6D75F02A2DBB24D00032D1A6 /* Frameworks */,
+				6D75F02B2DBB24D00032D1A6 /* Resources */,
+				6D531CD22DCABECB002230FF /* CopyFiles */,
+				6DCACFC32DF4AC9400CF361E /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6DCACFBD2DF4AC9400CF361E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6D061D422DFD4A07002CFD1D /* CloudKit */,
+				6D3202B72E2F636000FAEE97 /* Features */,
+				6D3202CC2E2F642A00FAEE97 /* Shared */,
+				6D3202D22E2FE9EF00FAEE97 /* App */,
+				6D3202D32E2FE9FF00FAEE97 /* Core */,
+				6D85D3272DD2CBCA00E8AD05 /* Views */,
+			);
+			name = DumFlow;
+			productName = DumFlow;
+			productReference = 6D75F02D2DBB24D00032D1A6 /* DumFlow.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6D75F0392DBB24D10032D1A6 /* DumFlowTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D75F0532DBB24D10032D1A6 /* Build configuration list for PBXNativeTarget "DumFlowTests" */;
+			buildPhases = (
+				6D75F0362DBB24D10032D1A6 /* Sources */,
+				6D75F0372DBB24D10032D1A6 /* Frameworks */,
+				6D75F0382DBB24D10032D1A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6D75F03C2DBB24D10032D1A6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6D75F03D2DBB24D10032D1A6 /* DumFlowTests */,
+			);
+			name = DumFlowTests;
+			productName = DumFlowTests;
+			productReference = 6D75F03A2DBB24D10032D1A6 /* DumFlowTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		6D75F0432DBB24D10032D1A6 /* DumFlowUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D75F0542DBB24D10032D1A6 /* Build configuration list for PBXNativeTarget "DumFlowUITests" */;
+			buildPhases = (
+				6D75F0402DBB24D10032D1A6 /* Sources */,
+				6D75F0412DBB24D10032D1A6 /* Frameworks */,
+				6D75F0422DBB24D10032D1A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6D75F0462DBB24D10032D1A6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6D75F0472DBB24D10032D1A6 /* DumFlowUITests */,
+			);
+			name = DumFlowUITests;
+			productName = DumFlowUITests;
+			productReference = 6D75F0442DBB24D10032D1A6 /* DumFlowUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		6DCACFB32DF4AC9400CF361E /* DumFlowShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6DCACFBF2DF4AC9400CF361E /* Build configuration list for PBXNativeTarget "DumFlowShareExtension" */;
+			buildPhases = (
+				6DCACFB02DF4AC9400CF361E /* Sources */,
+				6DCACFB12DF4AC9400CF361E /* Frameworks */,
+				6DCACFB22DF4AC9400CF361E /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				6DCACFB52DF4AC9400CF361E /* DumFlowShareExtension */,
+			);
+			name = DumFlowShareExtension;
+			productName = DumFlowShareExtension;
+			productReference = 6DCACFB42DF4AC9400CF361E /* DumFlowShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6D7D6F982BDEEBAF002DF0C9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					6D75F02C2DBB24D00032D1A6 = {
+						CreatedOnToolsVersion = 16.3;
+					};
+					6D75F0392DBB24D10032D1A6 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 6D75F02C2DBB24D00032D1A6;
+					};
+					6D75F0432DBB24D10032D1A6 = {
+						CreatedOnToolsVersion = 16.3;
+						TestTargetID = 6D75F02C2DBB24D00032D1A6;
+					};
+					6DCACFB32DF4AC9400CF361E = {
+						CreatedOnToolsVersion = 16.3;
+					};
+				};
+			};
+			buildConfigurationList = 6D7D6F9B2BDEEBAF002DF0C9 /* Build configuration list for PBXProject "DumFlow" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 6D7D6F972BDEEBAF002DF0C9;
+			packageReferences = (
+			);
+			preferredProjectObjectVersion = 90;
+			productRefGroup = 6D7D6FA12BDEEBAF002DF0C9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6D75F02C2DBB24D00032D1A6 /* DumFlow */,
+				6D75F0392DBB24D10032D1A6 /* DumFlowTests */,
+				6D75F0432DBB24D10032D1A6 /* DumFlowUITests */,
+				6DCACFB32DF4AC9400CF361E /* DumFlowShareExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6D75F02B2DBB24D00032D1A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				6D3A648F2E138CBD0009991D /* Assets.xcassets in Resources */,
+				6D963F902E42C67A00A0C1A1 /* GoogleService-Info.plist in Resources */,
+			);
+		};
+		6D75F0382DBB24D10032D1A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		6D75F0422DBB24D10032D1A6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		6DCACFB22DF4AC9400CF361E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				6D963F8F2E42C67A00A0C1A1 /* GoogleService-Info.plist in Resources */,
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6D75F0292DBB24D00032D1A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				6DD454202E32925E0065A409 /* WikipediaService.swift in Sources */,
+				6DAECDAB2E230B2800681FE8 /* FollowService.swift in Sources */,
+				6D48CFB82E6D2EBF00E87D7D /* TrendPageViewSFSymbols.swift in Sources */,
+				6DAECD362E2085E300681FE8 /* WebPageService.swift in Sources */,
+			);
+		};
+		6D75F0362DBB24D10032D1A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		6D75F0402DBB24D10032D1A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		6DCACFB02DF4AC9400CF361E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6D75F03C2DBB24D10032D1A6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6D75F02C2DBB24D00032D1A6 /* DumFlow */;
+			targetProxy = 6D75F03B2DBB24D10032D1A6 /* PBXContainerItemProxy */;
+		};
+		6D75F0462DBB24D10032D1A6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6D75F02C2DBB24D00032D1A6 /* DumFlow */;
+			targetProxy = 6D75F0452DBB24D10032D1A6 /* PBXContainerItemProxy */;
+		};
+		6DCACFBD2DF4AC9400CF361E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6DCACFB32DF4AC9400CF361E /* DumFlowShareExtension */;
+			targetProxy = 6DCACFBC2DF4AC9400CF361E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		6D75F04C2DBB24D10032D1A6 /* Debug configuration for PBXNativeTarget "DumFlow" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DumFlow/DumFlow.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = SA8Y57H242;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = /Users/isaacherskowitz/Swift/_DumFlow/DumFlow/DumFlow/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Shtell;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "DumFlow needs access to save images from web pages to your Photos library.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = elephantlitter.jpg;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.1.7;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.Shtell;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Debug;
+		};
+		6D75F04D2DBB24D10032D1A6 /* Release configuration for PBXNativeTarget "DumFlow" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = DumFlow/DumFlow.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = SA8Y57H242;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = /Users/isaacherskowitz/Swift/_DumFlow/DumFlow/DumFlow/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Shtell;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "DumFlow needs access to save images from web pages to your Photos library.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = elephantlitter.jpg;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.1.7;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.Shtell;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Release;
+		};
+		6D75F04E2DBB24D10032D1A6 /* Debug configuration for PBXNativeTarget "DumFlowTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.DumFlowTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DumFlow.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DumFlow";
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Debug;
+		};
+		6D75F04F2DBB24D10032D1A6 /* Release configuration for PBXNativeTarget "DumFlowTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.DumFlowTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DumFlow.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/DumFlow";
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Release;
+		};
+		6D75F0502DBB24D10032D1A6 /* Debug configuration for PBXNativeTarget "DumFlowUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.DumFlowUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = DumFlow;
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Debug;
+		};
+		6D75F0512DBB24D10032D1A6 /* Release configuration for PBXNativeTarget "DumFlowUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.DumFlowUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = DumFlow;
+				XROS_DEPLOYMENT_TARGET = 2.4;
+			};
+			name = Release;
+		};
+		6D7D6FAC2BDEEBB0002DF0C9 /* Debug configuration for PBXProject "DumFlow" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = SA8Y57H242;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				NEW_SETTING = "";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		6D7D6FAD2BDEEBB0002DF0C9 /* Release configuration for PBXProject "DumFlow" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = SA8Y57H242;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				NEW_SETTING = "";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		6DCACFC02DF4AC9400CF361E /* Debug configuration for PBXNativeTarget "DumFlowShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = DumFlowShareExtension/DumFlowShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEVELOPMENT_TEAM = SA8Y57H242;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DumFlowShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DumFlowShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1.7;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.Shtell.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		6DCACFC12DF4AC9400CF361E /* Release configuration for PBXNativeTarget "DumFlowShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = DumFlowShareExtension/DumFlowShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 117;
+				DEVELOPMENT_TEAM = SA8Y57H242;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DumFlowShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DumFlowShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.1.7;
+				PRODUCT_BUNDLE_IDENTIFIER = com.yitzy.Shtell.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6D75F0522DBB24D10032D1A6 /* Build configuration list for PBXNativeTarget "DumFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D75F04C2DBB24D10032D1A6 /* Debug configuration for PBXNativeTarget "DumFlow" */,
+				6D75F04D2DBB24D10032D1A6 /* Release configuration for PBXNativeTarget "DumFlow" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		6D75F0532DBB24D10032D1A6 /* Build configuration list for PBXNativeTarget "DumFlowTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D75F04E2DBB24D10032D1A6 /* Debug configuration for PBXNativeTarget "DumFlowTests" */,
+				6D75F04F2DBB24D10032D1A6 /* Release configuration for PBXNativeTarget "DumFlowTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		6D75F0542DBB24D10032D1A6 /* Build configuration list for PBXNativeTarget "DumFlowUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D75F0502DBB24D10032D1A6 /* Debug configuration for PBXNativeTarget "DumFlowUITests" */,
+				6D75F0512DBB24D10032D1A6 /* Release configuration for PBXNativeTarget "DumFlowUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		6D7D6F9B2BDEEBAF002DF0C9 /* Build configuration list for PBXProject "DumFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6D7D6FAC2BDEEBB0002DF0C9 /* Debug configuration for PBXProject "DumFlow" */,
+				6D7D6FAD2BDEEBB0002DF0C9 /* Release configuration for PBXProject "DumFlow" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		6DCACFBF2DF4AC9400CF361E /* Build configuration list for PBXNativeTarget "DumFlowShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6DCACFC02DF4AC9400CF361E /* Debug configuration for PBXNativeTarget "DumFlowShareExtension" */,
+				6DCACFC12DF4AC9400CF361E /* Release configuration for PBXNativeTarget "DumFlowShareExtension" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 6D7D6F982BDEEBAF002DF0C9 /* Project object */;
+}

@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Claude Code slash command: /git-status
+# Show current branch, worktree path, and recent commits
+
+echo "📋 Git Status Summary"
+echo "===================="
+
+# Current location and branch
+echo "📍 Current Location: $(pwd)"
+echo "🌿 Current Branch: $(git branch --show-current)"
+
+# Worktree info for current location
+echo ""
+echo "🌳 Current Worktree:"
+git worktree list | grep "$(pwd)" | head -1
+
+# Recent commits on current branch
+echo ""
+echo "📝 Recent Commits (last 5):"
+git log --oneline -5 --decorate
+
+# Working tree status
+echo ""
+echo "🔄 Working Tree Status:"
+git status --porcelain | head -10 || echo "   Clean working tree"
+
+# Ahead/behind status relative to origin
+echo ""
+echo "📊 Sync Status with Origin:"
+if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then
+    ahead=$(git rev-list --count @{u}..HEAD)
+    behind=$(git rev-list --count HEAD..@{u})
+    if [ "$ahead" -gt 0 ] && [ "$behind" -gt 0 ]; then
+        echo "   ⚠️  Ahead $ahead, behind $behind commits"
+    elif [ "$ahead" -gt 0 ]; then
+        echo "   ⬆️  Ahead $ahead commits"
+    elif [ "$behind" -gt 0 ]; then
+        echo "   ⬇️  Behind $behind commits"
+    else
+        echo "   ✅ Up to date"
+    fi
+else
+    echo "   ℹ️  No upstream branch set"
+fi

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AWS_ACCESS_KEY_ID</key>
+	<string>AKIAUON2G4CIEFYOZEJX</string>
+	<key>AWS_DEFAULT_REGION</key>
+	<string>us-east-1</string>
+	<key>AWS_SECRET_ACCESS_KEY</key>
+	<string>SVMqfKzPRgtLbL9JijZqQegrpWRkvLsR2caXYcy9</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLIconFile</key>
+			<string></string>
+			<key>CFBundleURLName</key>
+			<string>com.isaacherskowitz.dumflow.url</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dumflow</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>dumflow</string>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
