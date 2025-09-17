@@ -28,6 +28,10 @@ class BrowseForwardViewModel: ObservableObject {
     
     // Simple cache - no persistence needed
     private var simpleCache: [String: [BrowseForwardItem]] = [:]
+
+    // Duplicate tracking
+    @Published private var recentlyShownURLs: Set<String> = []
+    private let maxRecentlyShown = 50 // Remember last 50 URLs
     private weak var webPageViewModel: WebPageViewModel?
     private let dynamoDBService: DynamoDBWebPageService = DynamoDBWebPageService.shared
     
@@ -35,11 +39,35 @@ class BrowseForwardViewModel: ObservableObject {
     private var debounceTask: Task<Void, Never>?
     
     private let paywalledDomains: Set<String> = [
-        "wsj.com", "nytimes.com", "ft.com", "economist.com",
+        "wsj.com", "nytimes.com", "nymag.com", "ft.com", "economist.com",
         "bloomberg.com", "washingtonpost.com", "theathlantic.com",
         "telegraph.co.uk", "bostonglobe.com", "latimes.com"
     ]
-    
+
+    /// Select item avoiding recent duplicates
+    private func selectItemAvoidingDuplicates(from items: [BrowseForwardItem]) -> BrowseForwardItem {
+        // Filter out recently shown items
+        let availableItems = items.filter { !recentlyShownURLs.contains($0.url) }
+
+        // If we've shown everything, clear history and start fresh
+        let finalItems = availableItems.isEmpty ? items : availableItems
+
+        // Pick random from filtered pool
+        let randomItem = finalItems.randomElement()!
+
+        // Track this selection
+        recentlyShownURLs.insert(randomItem.url)
+
+        // Maintain reasonable history size
+        if recentlyShownURLs.count > maxRecentlyShown {
+            let urlArray = Array(recentlyShownURLs)
+            recentlyShownURLs = Set(urlArray.suffix(maxRecentlyShown - 10)) // Keep most recent 40
+        }
+
+        browseForwardLog("🔄 Selected avoiding duplicates: \(randomItem.url) (recently shown: \(recentlyShownURLs.count))")
+        return randomItem
+    }
+
     init(webPageViewModel: WebPageViewModel? = nil) {
         self.webPageViewModel = webPageViewModel
         isCacheReady = true
@@ -92,8 +120,8 @@ class BrowseForwardViewModel: ObservableObject {
                 return "https://en.wikipedia.org/wiki/Special:Random"
             }
             
-            // COMBINED POOL APPROACH: Get random item from entire category
-            let randomItem = items.randomElement()!
+            // COMBINED POOL APPROACH: Get random item from entire category (avoiding recent duplicates)
+            let randomItem = selectItemAvoidingDuplicates(from: items)
             print("✅ Selected random item: \(randomItem.title) from \(randomItem.domain)")
             return randomItem.url
             
@@ -138,63 +166,76 @@ class BrowseForwardViewModel: ObservableObject {
     }
     
     /// Get content based on user preferences from the new BrowseForwardPreferencesView
-    func fetchByUserPreferences(limit: Int = 20) async throws -> [BrowseForwardItem] {
-        print("🔍 DEBUG fetchByUserPreferences: === STARTING fetchByUserPreferences ===")
-        print("🔍 DEBUG fetchByUserPreferences: limit: \(limit)")
-        print("🔍 DEBUG fetchByUserPreferences: dynamoDBService ready")
+    func fetchByUserPreferences(limit: Int = 200) async throws -> [BrowseForwardItem] {
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: === STARTING fetchByUserPreferences ===")
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: limit: \(limit)")
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: dynamoDBService ready")
         
         // Load user preferences from UserDefaults
         let userDefaultsData = UserDefaults.standard.data(forKey: "BrowseForwardPreferences")
-        print("🔍 DEBUG fetchByUserPreferences: UserDefaults data exists: \(userDefaultsData != nil)")
-        
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: UserDefaults data exists: \(userDefaultsData != nil)")
+
         guard let data = userDefaultsData,
               let preferences = try? JSONDecoder().decode(BrowseForwardPreferences.self, from: data) else {
-            print("🔍 DEBUG fetchByUserPreferences: No preferences found, using fetchDefaultContent")
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: No preferences found, using all active content")
             // No preferences set, use ALL active content as default
-            return try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+            let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: All active content returned \(result.count) items")
+            return result
         }
-        
-        print("🔍 DEBUG fetchByUserPreferences: Preferences loaded successfully")
-        print("🔍 DEBUG fetchByUserPreferences: isDefaultMode: \(preferences.isDefaultMode)")
-        print("🔍 DEBUG fetchByUserPreferences: selectedCategories: \(preferences.selectedCategories)")
-        print("🔍 DEBUG fetchByUserPreferences: selectedSubcategories: \(preferences.selectedSubcategories)")
+
+        // Add detailed logging of the loaded preferences
+        print("💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:")
+        print("💾 DEBUG fetchByUserPreferences: selectedCategories: \(preferences.selectedCategories)")
+        print("💾 DEBUG fetchByUserPreferences: selectedSubcategories: \(preferences.selectedSubcategories)")
+        print("💾 DEBUG fetchByUserPreferences: isDefaultMode: \(preferences.isDefaultMode)")
+        print("💾 DEBUG fetchByUserPreferences: lastUpdated: \(preferences.lastUpdated)")
+
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: Preferences loaded successfully")
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: isDefaultMode: \(preferences.isDefaultMode)")
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: selectedCategories: \(preferences.selectedCategories)")
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: selectedSubcategories: \(preferences.selectedSubcategories)")
         
         // If no selections, return all active content
         if preferences.isDefaultMode {
-            print("🔍 DEBUG fetchByUserPreferences: Using default mode - calling fetchBFQueueItems with isActive=true")
-            return try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Using default mode - calling fetchBFQueueItems with isActive=true")
+            let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Default mode returned \(result.count) items")
+            return result
         }
-        
+
         // Handle category-based filtering
         if !preferences.selectedCategories.isEmpty {
-            print("🔍 DEBUG fetchByUserPreferences: Using selected categories: \(preferences.selectedCategories)")
-            
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Using selected categories: \(preferences.selectedCategories)")
+
             // Pick one random category from user's selections
             let randomCategory = preferences.selectedCategories.randomElement()!
-            print("🔍 DEBUG fetchByUserPreferences: Selected random category: '\(randomCategory)'")
-            
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected random category: '\(randomCategory)'")
+
             // Check if user has subcategory selections for this category
             var selectedSubcategory: String? = nil
             if let subcategories = preferences.selectedSubcategories[randomCategory],
                !subcategories.isEmpty {
                 selectedSubcategory = subcategories.randomElement()
-                print("🔍 DEBUG fetchByUserPreferences: Selected random subcategory: '\(selectedSubcategory ?? "nil")'")
+                browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected random subcategory: '\(selectedSubcategory ?? "nil")'")
             }
-            
+
             let result = try await dynamoDBService.fetchBFQueueItems(
-                category: randomCategory, 
-                subcategory: selectedSubcategory, 
-                isActiveOnly: true, 
+                category: randomCategory,
+                subcategory: selectedSubcategory,
+                isActiveOnly: true,
                 limit: limit
             )
-            
-            print("🔍 DEBUG fetchByUserPreferences: Category result count: \(result.count)")
+
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Category '\(randomCategory)' returned \(result.count) items")
             return result
         }
-        
+
         // Fallback: return all active content
-        print("🔍 DEBUG fetchByUserPreferences: Fallback: fetching all active content")
-        return try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: Fallback: fetching all active content")
+        let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: Fallback returned \(result.count) items")
+        return result
     }
     
     /// Refresh content queue based on new preferences - used by preferences view

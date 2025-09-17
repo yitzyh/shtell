@@ -45,7 +45,7 @@ class BrowserHistoryService: ObservableObject {
         title: String?,
         referrerURL: String? = nil
     ) {
-        print("🟢 BrowserHistoryService: Adding to history - \(urlString)")
+        print("🟢 BrowserHistoryService: Adding to history - \(cleanURLForLogging(urlString))")
         
         guard let userID = authViewModel.signedInUser?.userID else {
             print("❌ BrowserHistoryService: No authenticated user")
@@ -65,21 +65,12 @@ class BrowserHistoryService: ObservableObject {
             referrerURL: referrerURL
         )
         
-        // Check if we already have this URL in recent history (update visit count)
-        if let existingIndex = recentHistory.firstIndex(where: { $0.urlString == urlString }) {
-            var updatedEntry = recentHistory[existingIndex]
-            updatedEntry.visitCount += 1
-            recentHistory[existingIndex] = updatedEntry
-            
-            // Update in CloudKit
-            updateHistoryEntry(updatedEntry)
-        } else {
-            // Add new entry
-            recentHistory.insert(historyEntry, at: 0)
-            
-            // Save to CloudKit
-            saveHistoryEntry(historyEntry)
-        }
+        // Always create a new entry for each visit - this provides better analytics
+        // and avoids CloudKit record conflicts while still tracking repeat visits
+        recentHistory.insert(historyEntry, at: 0)
+
+        // Save to CloudKit
+        saveHistoryEntry(historyEntry)
         
         // Keep only recent 100 entries in memory
         if recentHistory.count > 100 {
@@ -139,16 +130,24 @@ class BrowserHistoryService: ObservableObject {
     
     private func updateHistoryEntry(_ entry: BrowserHistory) {
         let record = entry.toRecord()
-        
-        publicDatabase.save(record) { savedRecord, error in
+
+        // Use modify operation to handle updates properly
+        let modifyOperation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+        modifyOperation.savePolicy = .changedKeys
+        modifyOperation.qualityOfService = .userInitiated
+
+        modifyOperation.modifyRecordsResultBlock = { result in
             DispatchQueue.main.async {
-                if let error = error {
-                    print("❌ BrowserHistoryService: Failed to update history - \(error.localizedDescription)")
-                } else {
+                switch result {
+                case .success:
                     print("✅ BrowserHistoryService: History updated successfully")
+                case .failure(let error):
+                    print("❌ BrowserHistoryService: Failed to update history - \(error.localizedDescription)")
                 }
             }
         }
+
+        publicDatabase.add(modifyOperation)
     }
     
     /// Reset pagination state (called before fresh fetch)
@@ -305,5 +304,26 @@ class BrowserHistoryService: ObservableObject {
                 print("❌ BrowserHistoryService: Failed to fetch history for deletion - \(error)")
             }
         }
+    }
+
+    // MARK: - Helper Functions
+
+    /// Clean URL for logging - removes encoded data and long parameters
+    private func cleanURLForLogging(_ urlString: String) -> String {
+        // Handle data URLs (splash screen, inline HTML)
+        if urlString.hasPrefix("data:") {
+            if urlString.contains("shtell") {
+                return "[SPLASH_SCREEN]"
+            }
+            return "[DATA_URL]"
+        }
+
+        // For regular URLs, just show domain + path (no query params)
+        if let url = URL(string: urlString) {
+            let hostPath = "\(url.host ?? "unknown")\(url.path)"
+            return hostPath.isEmpty ? urlString : hostPath
+        }
+
+        return urlString
     }
 }

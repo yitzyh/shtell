@@ -10,7 +10,9 @@
       "Bash(git commit:*)",
       "Read(//Users/isaacherskowitz/Swift/_DumFlow/DumFlow-pull-forward/**)",
       "Bash(rm:*)",
-      "Read(//Users/isaacherskowitz/Downloads/iCloud Photos-2/**)"
+      "Read(//Users/isaacherskowitz/Downloads/iCloud Photos-2/**)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh repo list:*)"
     ],
     "deny": [],
     "ask": []

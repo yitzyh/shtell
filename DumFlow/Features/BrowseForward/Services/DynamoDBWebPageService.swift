@@ -193,12 +193,12 @@ class DynamoDBWebPageService: ObservableObject {
     }
     
     /// Lightweight queue items by category and subcategory with isActive filtering (only 8 fields)
-    func fetchBFQueueItems(category: String?, subcategory: String? = nil, isActiveOnly: Bool = true, limit: Int = 50) async throws -> [BrowseForwardItem] {
-        print("🏷️ DEBUG fetchBFQueueItems: === STARTING fetchBFQueueItems ===")
-        print("🏷️ DEBUG fetchBFQueueItems: category: \(category ?? "nil")")
-        print("🏷️ DEBUG fetchBFQueueItems: subcategory: \(subcategory ?? "nil")")
-        print("🏷️ DEBUG fetchBFQueueItems: isActiveOnly: \(isActiveOnly)")
-        print("🏷️ DEBUG fetchBFQueueItems: limit: \(limit)")
+    func fetchBFQueueItems(category: String?, subcategory: String? = nil, isActiveOnly: Bool = true, limit: Int = 200) async throws -> [BrowseForwardItem] {
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: === STARTING fetchBFQueueItems ===")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: category: \(category ?? "nil")")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: subcategory: \(subcategory ?? "nil")")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: isActiveOnly: \(isActiveOnly)")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: limit: \(limit)")
         
         let params = WebPageQueryParams(
             bfCategory: category,
@@ -211,17 +211,17 @@ class DynamoDBWebPageService: ObservableObject {
             lastEvaluatedKey: nil
         )
         
-        print("🏷️ DEBUG fetchBFQueueItems: About to call performLightweightQuery")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: About to call performLightweightQuery")
         let result = try await performLightweightQuery(with: params)
-        print("🏷️ DEBUG fetchBFQueueItems: performLightweightQuery returned \(result.count) items")
-        print("🏷️ DEBUG fetchBFQueueItems: === ENDING fetchBFQueueItems ===")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: performLightweightQuery returned \(result.count) items")
+        dynamoLog("🏷️ DEBUG fetchBFQueueItems: === ENDING fetchBFQueueItems ===")
         return result
     }
     
     
     /// Get all available categories from active items
     func getAvailableCategories() async throws -> [String] {
-        print("📂 DEBUG getAvailableCategories: === STARTING getAvailableCategories ===")
+        dynamoLog("📂 DEBUG getAvailableCategories: === STARTING getAvailableCategories ===")
         
         // Fetch a sample of active items to discover categories
         let params = WebPageQueryParams(
@@ -238,14 +238,14 @@ class DynamoDBWebPageService: ObservableObject {
         let items = try await performQuery(with: params)
         let categories = Set(items.compactMap { $0.bfCategory }).sorted()
         
-        print("📂 DEBUG getAvailableCategories: Found \(categories.count) categories: \(categories)")
+        dynamoLog("📂 DEBUG getAvailableCategories: Found \(categories.count) categories: \(categories)")
         return categories
     }
     
     /// Get available subcategories for a specific category
     func getSubcategories(for category: String) async throws -> [String] {
-        print("📂 DEBUG getSubcategories: === STARTING getSubcategories ===")
-        print("📂 DEBUG getSubcategories: category: \(category)")
+        dynamoLog("📂 DEBUG getSubcategories: === STARTING getSubcategories ===")
+        dynamoLog("📂 DEBUG getSubcategories: category: \(category)")
         
         let params = WebPageQueryParams(
             bfCategory: category,
@@ -261,15 +261,15 @@ class DynamoDBWebPageService: ObservableObject {
         let items = try await performQuery(with: params)
         let subcategories = Set(items.compactMap { $0.bfSubcategory }).sorted()
         
-        print("📂 DEBUG getSubcategories: Found \(subcategories.count) subcategories: \(subcategories)")
+        dynamoLog("📂 DEBUG getSubcategories: Found \(subcategories.count) subcategories: \(subcategories)")
         return subcategories
     }
     
     /// Fetch articles by source (e.g., "internet-archive-science", "reddit-worldnews")
     func fetchBySource(_ source: String, limit: Int = 50) async throws -> [AWSWebPageItem] {
-        print("🔥 DEBUG fetchBySource: === STARTING fetchBySource ===")
-        print("🔥 DEBUG fetchBySource: source: '\(source)'")
-        print("🔥 DEBUG fetchBySource: limit: \(limit)")
+        dynamoLog("🔥 DEBUG fetchBySource: === STARTING fetchBySource ===")
+        dynamoLog("🔥 DEBUG fetchBySource: source: '\(source)'")
+        dynamoLog("🔥 DEBUG fetchBySource: limit: \(limit)")
         
         let params = WebPageQueryParams(
             bfCategory: nil,
@@ -282,17 +282,17 @@ class DynamoDBWebPageService: ObservableObject {
             lastEvaluatedKey: nil
         )
         
-        print("🔥 DEBUG fetchBySource: About to call performQuery")
+        dynamoLog("🔥 DEBUG fetchBySource: About to call performQuery")
         let result = try await performQuery(with: params)
-        print("🔥 DEBUG fetchBySource: performQuery returned \(result.count) items")
-        print("🔥 DEBUG fetchBySource: === ENDING fetchBySource ===")
+        dynamoLog("🔥 DEBUG fetchBySource: performQuery returned \(result.count) items")
+        dynamoLog("🔥 DEBUG fetchBySource: === ENDING fetchBySource ===")
         return result
     }
     
     /// Fetch popular articles across all categories
     func fetchPopular(limit: Int = 50) async throws -> [AWSWebPageItem] {
-        print("⭐ DEBUG fetchPopular: === STARTING fetchPopular ===")
-        print("⭐ DEBUG fetchPopular: limit: \(limit)")
+        dynamoLog("⭐ DEBUG fetchPopular: === STARTING fetchPopular ===")
+        dynamoLog("⭐ DEBUG fetchPopular: limit: \(limit)")
         
         let params = WebPageQueryParams(
             bfCategory: nil,
@@ -305,10 +305,10 @@ class DynamoDBWebPageService: ObservableObject {
             lastEvaluatedKey: nil
         )
         
-        print("⭐ DEBUG fetchPopular: About to call performQuery")
+        dynamoLog("⭐ DEBUG fetchPopular: About to call performQuery")
         let result = try await performQuery(with: params)
-        print("⭐ DEBUG fetchPopular: performQuery returned \(result.count) items")
-        print("⭐ DEBUG fetchPopular: === ENDING fetchPopular ===")
+        dynamoLog("⭐ DEBUG fetchPopular: performQuery returned \(result.count) items")
+        dynamoLog("⭐ DEBUG fetchPopular: === ENDING fetchPopular ===")
         return result
     }
     
@@ -329,9 +329,9 @@ class DynamoDBWebPageService: ObservableObject {
     
     /// Search articles by multiple tags with AND logic (handles both SS and L formats)
     func fetchByTags(_ tags: [String], limit: Int = 50) async throws -> [AWSWebPageItem] {
-        print("🏷️ DEBUG fetchByTags: === STARTING fetchByTags ===")
-        print("🏷️ DEBUG fetchByTags: tags: \(tags)")
-        print("🏷️ DEBUG fetchByTags: limit: \(limit)")
+        dynamoLog("🏷️ DEBUG fetchByTags: === STARTING fetchByTags ===")
+        dynamoLog("🏷️ DEBUG fetchByTags: tags: \(tags)")
+        dynamoLog("🏷️ DEBUG fetchByTags: limit: \(limit)")
         
         let params = WebPageQueryParams(
             bfCategory: nil,
@@ -344,10 +344,10 @@ class DynamoDBWebPageService: ObservableObject {
             lastEvaluatedKey: nil
         )
         
-        print("🏷️ DEBUG fetchByTags: About to call performQuery")
+        dynamoLog("🏷️ DEBUG fetchByTags: About to call performQuery")
         let result = try await performQuery(with: params)
-        print("🏷️ DEBUG fetchByTags: performQuery returned \(result.count) items")
-        print("🏷️ DEBUG fetchByTags: === ENDING fetchByTags ===")
+        dynamoLog("🏷️ DEBUG fetchByTags: performQuery returned \(result.count) items")
+        dynamoLog("🏷️ DEBUG fetchByTags: === ENDING fetchByTags ===")
         return result
     }
     
@@ -396,7 +396,7 @@ class DynamoDBWebPageService: ObservableObject {
             items = applySorting(items, sortBy: params.sortBy)
             dynamoLog("🌟 DEBUG performQuery: Items sorted, final count: \(items.count)")
             
-            print("✅ DynamoDB query successful: \(items.count) items fetched")
+            dynamoLog("✅ DynamoDB query successful: \(items.count) items fetched")
             
             if items.isEmpty {
                 dynamoLog("🌟 DEBUG performQuery: No items found, throwing noItemsFound error")
@@ -405,18 +405,18 @@ class DynamoDBWebPageService: ObservableObject {
             
             let endMemory = getMemoryUsage()
             let memoryDelta = Int64(endMemory) - Int64(startMemory)
-            print("📊 DEBUG performQuery: Final memory usage: \(ByteCountFormatter.string(fromByteCount: Int64(endMemory), countStyle: .memory)) (Δ\(memoryDelta > 0 ? "+" : "")\(ByteCountFormatter.string(fromByteCount: memoryDelta, countStyle: .memory)))")
+            memoryLog("📊 DEBUG performQuery: Final memory usage: \(ByteCountFormatter.string(fromByteCount: Int64(endMemory), countStyle: .memory)) (Δ\(memoryDelta > 0 ? "+" : "")\(ByteCountFormatter.string(fromByteCount: memoryDelta, countStyle: .memory)))")
             dynamoLog("🌟 DEBUG performQuery: === ENDING performQuery SUCCESS ===")
             return items
             
         } catch let error as DynamoDBWebPageServiceError {
-            print("🚨 DEBUG performQuery: DynamoDBWebPageServiceError caught: \(error)")
+            awsLog("🚨 DEBUG performQuery: DynamoDBWebPageServiceError caught: \(error)")
             await MainActor.run {
                 lastError = error
             }
             throw error
         } catch {
-            print("🚨 DEBUG performQuery: Generic error caught: \(error)")
+            awsLog("🚨 DEBUG performQuery: Generic error caught: \(error)")
             let serviceError = DynamoDBWebPageServiceError.networkError(error)
             await MainActor.run {
                 lastError = serviceError
@@ -427,11 +427,11 @@ class DynamoDBWebPageService: ObservableObject {
     
     /// Lightweight query that only parses the 8 core fields
     private func performLightweightQuery(with params: WebPageQueryParams) async throws -> [BrowseForwardItem] {
-        print("🚀 DEBUG performLightweightQuery: === STARTING performLightweightQuery ===")
-        print("🚀 DEBUG performLightweightQuery: params.bfCategory: \(params.bfCategory ?? "nil")")
-        print("🚀 DEBUG performLightweightQuery: params.bfSubcategory: \(params.bfSubcategory ?? "nil")")
-        print("🚀 DEBUG performLightweightQuery: params.isActiveOnly: \(params.isActiveOnly ?? false)")
-        print("🚀 DEBUG performLightweightQuery: params.limit: \(params.limit)")
+        dynamoLog("🚀 DEBUG performLightweightQuery: === STARTING performLightweightQuery ===")
+        dynamoLog("🚀 DEBUG performLightweightQuery: params.bfCategory: \(params.bfCategory ?? "nil")")
+        dynamoLog("🚀 DEBUG performLightweightQuery: params.bfSubcategory: \(params.bfSubcategory ?? "nil")")
+        dynamoLog("🚀 DEBUG performLightweightQuery: params.isActiveOnly: \(params.isActiveOnly ?? false)")
+        dynamoLog("🚀 DEBUG performLightweightQuery: params.limit: \(params.limit)")
         
         await MainActor.run {
             isLoading = true
@@ -445,30 +445,30 @@ class DynamoDBWebPageService: ObservableObject {
         }
         
         do {
-            print("🚀 DEBUG performLightweightQuery: About to buildQueryExpression")
+            dynamoLog("🚀 DEBUG performLightweightQuery: About to buildQueryExpression")
             let queryExpression = buildQueryExpression(for: params)
-            print("🚀 DEBUG performLightweightQuery: Query expression built, calling executeQuery")
+            dynamoLog("🚀 DEBUG performLightweightQuery: Query expression built, calling executeQuery")
             let response = try await executeQuery(queryExpression)
-            print("🚀 DEBUG performLightweightQuery: executeQuery returned \(response.count) bytes")
+            networkLog("🚀 DEBUG performLightweightQuery: executeQuery returned \(response.count) bytes")
             let items = try parseLightweightResponse(response)
-            print("🚀 DEBUG performLightweightQuery: Parsed \(items.count) items")
+            dynamoLog("🚀 DEBUG performLightweightQuery: Parsed \(items.count) items")
             
             if items.isEmpty {
-                print("🚀 DEBUG performLightweightQuery: No items found, throwing error")
+                dynamoLog("🚀 DEBUG performLightweightQuery: No items found, throwing error")
                 throw DynamoDBWebPageServiceError.noItemsFound
             }
             
-            print("🚀 DEBUG performLightweightQuery: === ENDING performLightweightQuery SUCCESS ===")
+            dynamoLog("🚀 DEBUG performLightweightQuery: === ENDING performLightweightQuery SUCCESS ===")
             return items
             
         } catch let error as DynamoDBWebPageServiceError {
-            print("🚨 DEBUG performLightweightQuery: DynamoDBWebPageServiceError: \(error)")
+            awsLog("🚨 DEBUG performLightweightQuery: DynamoDBWebPageServiceError: \(error)")
             await MainActor.run {
                 lastError = error
             }
             throw error
         } catch {
-            print("🚨 DEBUG performLightweightQuery: Generic error: \(error)")
+            awsLog("🚨 DEBUG performLightweightQuery: Generic error: \(error)")
             let serviceError = DynamoDBWebPageServiceError.networkError(error)
             await MainActor.run {
                 lastError = serviceError
@@ -561,14 +561,31 @@ class DynamoDBWebPageService: ObservableObject {
             dynamoLog("🔧 DEBUG buildQueryExpression: No FilterExpression - scanning entire table")
         }
         
-        if !expressionAttributeValues.isEmpty {
-            query["ExpressionAttributeValues"] = expressionAttributeValues
-            dynamoLog("🔧 DEBUG buildQueryExpression: ExpressionAttributeValues: \(expressionAttributeValues)")
-        }
-        
-        if !expressionAttributeNames.isEmpty {
-            query["ExpressionAttributeNames"] = expressionAttributeNames
-            dynamoLog("🔧 DEBUG buildQueryExpression: ExpressionAttributeNames: \(expressionAttributeNames)")
+        // Only add filter attributes if we have filter expressions (for Scan operations)
+        if !filterExpressions.isEmpty {
+            if !scanExpressionAttributeValues.isEmpty {
+                // Merge with existing values from GSI query if they exist
+                if var existingValues = query["ExpressionAttributeValues"] as? [String: [String: Any]] {
+                    for (key, value) in scanExpressionAttributeValues {
+                        existingValues[key] = value
+                    }
+                    query["ExpressionAttributeValues"] = existingValues
+                } else {
+                    query["ExpressionAttributeValues"] = scanExpressionAttributeValues
+                }
+            }
+
+            if !scanExpressionAttributeNames.isEmpty {
+                // Merge with existing names from GSI query if they exist
+                if var existingNames = query["ExpressionAttributeNames"] as? [String: String] {
+                    for (key, value) in scanExpressionAttributeNames {
+                        existingNames[key] = value
+                    }
+                    query["ExpressionAttributeNames"] = existingNames
+                } else {
+                    query["ExpressionAttributeNames"] = scanExpressionAttributeNames
+                }
+            }
         }
         
         // Add pagination
@@ -577,15 +594,15 @@ class DynamoDBWebPageService: ObservableObject {
         }
         
         dynamoLog("🔧 DEBUG buildQueryExpression: Final query: \(query)")
-        print("⏱️  DEBUG buildQueryExpression: Query building completed in: \(CFAbsoluteTimeGetCurrent() - buildStart)s")
+        dynamoLog("⏱️  DEBUG buildQueryExpression: Query building completed in: \(CFAbsoluteTimeGetCurrent() - buildStart)s")
         dynamoLog("🔧 DEBUG buildQueryExpression: === ENDING buildQueryExpression ===")
         return query
     }
     
     private func executeQuery(_ queryExpression: [String: Any]) async throws -> Data {
         let credStart = CFAbsoluteTimeGetCurrent()
-        print("🔑 DEBUG executeQuery: === STARTING executeQuery ===")
-        print("🔑 DEBUG executeQuery: Starting credential lookup")
+        awsLog("🔑 DEBUG executeQuery: === STARTING executeQuery ===")
+        awsLog("🔑 DEBUG executeQuery: Starting credential lookup")
         
         // Get AWS credentials from Info.plist (best practice for iOS)
         guard let accessKey = Bundle.main.object(forInfoDictionaryKey: "AWS_ACCESS_KEY_ID") as? String,
@@ -595,7 +612,7 @@ class DynamoDBWebPageService: ObservableObject {
             guard let envAccessKey = ProcessInfo.processInfo.environment["AWS_ACCESS_KEY_ID"],
                   let envSecretKey = ProcessInfo.processInfo.environment["AWS_SECRET_ACCESS_KEY"],
                   !envAccessKey.isEmpty, !envSecretKey.isEmpty else {
-                print("❌ DynamoDBWebPageService: AWS credentials not found in Info.plist or environment")
+                awsLog("❌ DynamoDBWebPageService: AWS credentials not found in Info.plist or environment")
                 throw DynamoDBWebPageServiceError.invalidCredentials
             }
             awsLog("✅ DynamoDBWebPageService: Using AWS credentials from environment variables")
@@ -605,9 +622,9 @@ class DynamoDBWebPageService: ObservableObject {
         
         awsLog("✅ DynamoDBWebPageService: Using AWS credentials from Info.plist")
         awsLog("🔑 DEBUG executeQuery: Credential lookup took: \(CFAbsoluteTimeGetCurrent() - credStart)s")
-        print("🔑 DEBUG executeQuery: Calling performRequest with credentials")
+        awsLog("🔑 DEBUG executeQuery: Calling performRequest with credentials")
         let result = try await performRequest(queryExpression: queryExpression, accessKey: accessKey, secretKey: secretKey)
-        print("🔑 DEBUG executeQuery: === ENDING executeQuery SUCCESS ===")
+        awsLog("🔑 DEBUG executeQuery: === ENDING executeQuery SUCCESS ===")
         return result
     }
     
@@ -615,35 +632,35 @@ class DynamoDBWebPageService: ObservableObject {
     private var pendingRequests: [String: Task<Data, Error>] = [:]
     
     private func performRequest(queryExpression: [String: Any], accessKey: String, secretKey: String) async throws -> Data {
-        print("🌐 DEBUG performRequest: === STARTING performRequest ===")
-        print("🌐 DEBUG performRequest: accessKey exists: \(!accessKey.isEmpty)")
-        print("🌐 DEBUG performRequest: secretKey exists: \(!secretKey.isEmpty)")
+        networkLog("🌐 DEBUG performRequest: === STARTING performRequest ===")
+        awsLog("🌐 DEBUG performRequest: accessKey exists: \(!accessKey.isEmpty)")
+        awsLog("🌐 DEBUG performRequest: secretKey exists: \(!secretKey.isEmpty)")
         
         // Create cache key for request deduplication
         let requestKey = createRequestCacheKey(queryExpression)
-        print("🌐 DEBUG performRequest: Request cache key: \(requestKey)")
+        networkLog("🌐 DEBUG performRequest: Request cache key: \(requestKey)")
         
         // Check if identical request is already in progress
         if let existingTask = pendingRequests[requestKey] {
-            print("🔄 Reusing existing request for: \(requestKey)")
+            networkLog("🔄 Reusing existing request for: \(requestKey)")
             return try await existingTask.value
         }
         
         // Create new task and cache it
-        print("🌐 DEBUG performRequest: Creating new task for request")
+        networkLog("🌐 DEBUG performRequest: Creating new task for request")
         let task = Task<Data, Error> {
             defer { 
-                print("🌐 DEBUG performRequest: Removing cached task for: \(requestKey)")
+                networkLog("🌐 DEBUG performRequest: Removing cached task for: \(requestKey)")
                 pendingRequests.removeValue(forKey: requestKey) 
             }
-            print("🌐 DEBUG performRequest: Calling executeRequest")
+            networkLog("🌐 DEBUG performRequest: Calling executeRequest")
             return try await executeRequest(queryExpression: queryExpression, accessKey: accessKey, secretKey: secretKey)
         }
         
         pendingRequests[requestKey] = task
-        print("🌐 DEBUG performRequest: Waiting for task to complete")
+        networkLog("🌐 DEBUG performRequest: Waiting for task to complete")
         let result = try await task.value
-        print("🌐 DEBUG performRequest: === ENDING performRequest SUCCESS ===")
+        networkLog("🌐 DEBUG performRequest: === ENDING performRequest SUCCESS ===")
         return result
     }
     
@@ -659,22 +676,22 @@ class DynamoDBWebPageService: ObservableObject {
     }
     
     private func executeRequest(queryExpression: [String: Any], accessKey: String, secretKey: String) async throws -> Data {
-        print("🔗 DEBUG executeRequest: === STARTING executeRequest ===")
-        print("🔗 DEBUG executeRequest: Region: \(region)")
+        networkLog("🔗 DEBUG executeRequest: === STARTING executeRequest ===")
+        awsLog("🔗 DEBUG executeRequest: Region: \(region)")
         
         // Create request
         guard let url = URL(string: "https://dynamodb.\(region).amazonaws.com/") else {
-            print("🚨 DEBUG executeRequest: Failed to create URL")
+            networkLog("🚨 DEBUG executeRequest: Failed to create URL")
             throw DynamoDBWebPageServiceError.networkError(URLError(.badURL))
         }
-        print("🔗 DEBUG executeRequest: URL created: \(url)")
+        networkLog("🔗 DEBUG executeRequest: URL created: \(url)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         
         // Determine operation type based on whether IndexName is present
         let operation = queryExpression["IndexName"] != nil ? "DynamoDB_20120810.Query" : "DynamoDB_20120810.Scan"
-        print("🔗 DEBUG executeRequest: Operation type: \(operation)")
+        awsLog("🔗 DEBUG executeRequest: Operation type: \(operation)")
         request.setValue(operation, forHTTPHeaderField: "X-Amz-Target")
         request.setValue("application/x-amz-json-1.0", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30 // Increase timeout for DynamoDB scans
@@ -684,16 +701,16 @@ class DynamoDBWebPageService: ObservableObject {
         do {
             jsonData = try JSONSerialization.data(withJSONObject: queryExpression)
             request.httpBody = jsonData
-            print("🔗 DEBUG executeRequest: Request body size: \(jsonData.count) bytes")
+            networkLog("🔗 DEBUG executeRequest: Request body size: \(jsonData.count) bytes")
         } catch {
-            print("🚨 DEBUG executeRequest: Failed to encode request body: \(error)")
+            networkLog("🚨 DEBUG executeRequest: Failed to encode request body: \(error)")
             throw DynamoDBWebPageServiceError.parseError(error)
         }
         
         // Add AWS authentication headers (basic implementation)
-        print("🔗 DEBUG executeRequest: Adding AWS auth headers")
+        awsLog("🔗 DEBUG executeRequest: Adding AWS auth headers")
         try addAWSAuthHeaders(&request, jsonData, accessKey: accessKey, secretKey: secretKey)
-        print("🔗 DEBUG executeRequest: AWS auth headers added successfully")
+        awsLog("🔗 DEBUG executeRequest: AWS auth headers added successfully")
         
         // Execute request with retry logic
         let networkStart = CFAbsoluteTimeGetCurrent()
@@ -720,28 +737,28 @@ class DynamoDBWebPageService: ObservableObject {
                         // Retry on certain error codes
                         if httpResponse.statusCode >= 500 && attempt < maxRetries {
                             let retryDelay = Double(attempt)
-                            print("🔄 DEBUG performRequest: Retrying attempt \(attempt)/\(maxRetries) after \(retryDelay)s due to server error: \(httpResponse.statusCode)")
+                            networkLog("🔄 DEBUG performRequest: Retrying attempt \(attempt)/\(maxRetries) after \(retryDelay)s due to server error: \(httpResponse.statusCode)")
                             try await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
                             continue
                         }
                         
-                        print("🚨 DEBUG performRequest: HTTP error \(httpResponse.statusCode) - no retry")
+                        networkLog("🚨 DEBUG performRequest: HTTP error \(httpResponse.statusCode) - no retry")
                         throw error
                     }
                 }
                 
-                print("🚨 DEBUG performRequest: Invalid response type")
+                networkLog("🚨 DEBUG performRequest: Invalid response type")
                 throw DynamoDBWebPageServiceError.invalidResponse
                 
             } catch {
                 lastError = error
                 if attempt < maxRetries {
                     let retryDelay = Double(attempt)
-                    print("🔄 DEBUG performRequest: Retrying attempt \(attempt)/\(maxRetries) after \(retryDelay)s due to: \(error.localizedDescription)")
+                    networkLog("🔄 DEBUG performRequest: Retrying attempt \(attempt)/\(maxRetries) after \(retryDelay)s due to: \(error.localizedDescription)")
                     try await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
                     continue
                 } else {
-                    print("🚨 DEBUG performRequest: All \(maxRetries) attempts failed")
+                    networkLog("🚨 DEBUG performRequest: All \(maxRetries) attempts failed")
                 }
             }
         }
@@ -756,11 +773,11 @@ class DynamoDBWebPageService: ObservableObject {
         do {
             let jsonStart = CFAbsoluteTimeGetCurrent()
             let response = try JSONDecoder().decode(DynamoDBQueryResponse.self, from: data)
-            print("⏱️  DEBUG parseResponse: JSON decoding completed in: \(CFAbsoluteTimeGetCurrent() - jsonStart)s")
+            dynamoLog("⏱️  DEBUG parseResponse: JSON decoding completed in: \(CFAbsoluteTimeGetCurrent() - jsonStart)s")
             
             guard let items = response.items else {
                 dynamoLog("🌐 DEBUG parseResponse: No items found in response")
-                print("⏱️  DEBUG parseResponse: Total parsing completed in: \(CFAbsoluteTimeGetCurrent() - parseStart)s")
+                dynamoLog("⏱️  DEBUG parseResponse: Total parsing completed in: \(CFAbsoluteTimeGetCurrent() - parseStart)s")
                 return []
             }
             
@@ -769,14 +786,14 @@ class DynamoDBWebPageService: ObservableObject {
             let webPageItems = items.compactMap { item -> AWSWebPageItem? in
                 return parseWebPageItem(from: item.attributes)
             }
-            print("⏱️  DEBUG parseResponse: Item parsing completed in: \(CFAbsoluteTimeGetCurrent() - itemStart)s")
+            dynamoLog("⏱️  DEBUG parseResponse: Item parsing completed in: \(CFAbsoluteTimeGetCurrent() - itemStart)s")
             
             dynamoLog("🌐 DEBUG parseResponse: Parsed \(webPageItems.count) items successfully")
-            print("⏱️  DEBUG parseResponse: Total parsing completed in: \(CFAbsoluteTimeGetCurrent() - parseStart)s")
+            dynamoLog("⏱️  DEBUG parseResponse: Total parsing completed in: \(CFAbsoluteTimeGetCurrent() - parseStart)s")
             return webPageItems
             
         } catch {
-            print("🚨 DEBUG parseResponse: JSON parsing failed in: \(CFAbsoluteTimeGetCurrent() - parseStart)s")
+            awsLog("🚨 DEBUG parseResponse: JSON parsing failed in: \(CFAbsoluteTimeGetCurrent() - parseStart)s")
             throw DynamoDBWebPageServiceError.parseError(error)
         }
     }
@@ -796,7 +813,7 @@ class DynamoDBWebPageService: ObservableObject {
               let thumbnailUrl = attributes["thumbnailUrl"]?.s,
               let fetchedAt = attributes["fetchedAt"]?.s,
               let updatedAt = attributes["updatedAt"]?.s else {
-            print("⚠️  Skipping item missing required fields: \(attributes.keys)")
+            awsLog("⚠️  Skipping item missing required fields: \(attributes.keys)")
             return nil
         }
         
@@ -898,7 +915,7 @@ class DynamoDBWebPageService: ObservableObject {
     
     private func applySorting(_ items: [AWSWebPageItem], sortBy: WebPageQueryParams.SortOption) -> [AWSWebPageItem] {
         let sortStart = CFAbsoluteTimeGetCurrent()
-        print("🔄 DEBUG applySorting: Starting sorting \(items.count) items by \(sortBy)...")
+        dynamoLog("🔄 DEBUG applySorting: Starting sorting \(items.count) items by \(sortBy)...")
         
         let sortedItems: [AWSWebPageItem]
         switch sortBy {
@@ -910,7 +927,7 @@ class DynamoDBWebPageService: ObservableObject {
             sortedItems = items.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
         
-        print("⏱️  DEBUG applySorting: Sorting completed in: \(CFAbsoluteTimeGetCurrent() - sortStart)s")
+        dynamoLog("⏱️  DEBUG applySorting: Sorting completed in: \(CFAbsoluteTimeGetCurrent() - sortStart)s")
         return sortedItems
     }
     
@@ -956,7 +973,7 @@ class DynamoDBWebPageService: ObservableObject {
         let authorizationHeader = "\(algorithm) Credential=\(accessKey)/\(credentialScope), SignedHeaders=\(signedHeaders), Signature=\(signature)"
         request.setValue(authorizationHeader, forHTTPHeaderField: "Authorization")
         
-        print("✅ DynamoDBWebPageService: AWS request signed with Signature v4")
+        awsLog("✅ DynamoDBWebPageService: AWS request signed with Signature v4")
     }
     
     private func sha256Hash(string: String) -> String {
@@ -995,7 +1012,7 @@ class DynamoDBWebPageService: ObservableObject {
     
     /// Fetch all available bf-category tags from the database
     func fetchAvailableBFCategories() async throws -> [String] {
-        print("🏷️ Fetching available bf-category tags...")
+        dynamoLog("🏷️ Fetching available bf-category tags...")
         
         // Use scan to get all items and extract unique bf-category tags
         let params = WebPageQueryParams(
@@ -1023,7 +1040,7 @@ class DynamoDBWebPageService: ObservableObject {
         }
         
         let sortedCategories = Array(categories).sorted()
-        print("🏷️ Found bf-category tags: \(sortedCategories)")
+        dynamoLog("🏷️ Found bf-category tags: \(sortedCategories)")
         return sortedCategories
     }
     

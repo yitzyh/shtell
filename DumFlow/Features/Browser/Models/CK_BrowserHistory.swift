@@ -112,21 +112,8 @@ extension BrowserHistory {
         userID: String,
         referrerURL: String? = nil
     ) {
-        // CloudKit record names have strict character restrictions - sanitize the URL
-        let sanitizedURL = urlString
-            .addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "unknown"
-        
-        // Ensure components are not empty
-        let validUserID = userID.isEmpty ? "anonymous" : userID
-        let validURL = sanitizedURL.isEmpty ? "unknown" : sanitizedURL
-        let timestamp = Date().timeIntervalSince1970
-        
-        // Create safe record name with max length limit (CloudKit limit is 255 chars)
-        let recordName = "\(validUserID)_\(validURL)_\(timestamp)"
-            .prefix(255)
-            .replacingOccurrences(of: " ", with: "_")
-        
-        let recordID = CKRecord.ID(recordName: String(recordName))
+        // Use UUID to ensure unique record IDs and avoid duplicates
+        let recordID = CKRecord.ID(recordName: UUID().uuidString)
         
         self.id = recordID
         self.urlString = urlString
