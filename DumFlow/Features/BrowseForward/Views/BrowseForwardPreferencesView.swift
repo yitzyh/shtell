@@ -350,8 +350,25 @@ struct BrowseForwardPreferencesView: View {
         preferences.lastUpdated = Date()
         if let data = try? JSONEncoder().encode(preferences) {
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
+
+            // Add debugging to see what we're saving
+            print("💾 DEBUG savePreferences: Saving preferences")
+            print("💾 DEBUG savePreferences: selectedCategories: \(preferences.selectedCategories)")
+            print("💾 DEBUG savePreferences: selectedSubcategories: \(preferences.selectedSubcategories)")
+            print("💾 DEBUG savePreferences: isDefaultMode: \(preferences.isDefaultMode)")
+
+            // Verify it was saved correctly
+            if let savedData = UserDefaults.standard.data(forKey: userDefaultsKey),
+               let loadedPrefs = try? JSONDecoder().decode(BrowseForwardPreferences.self, from: savedData) {
+                print("✅ DEBUG savePreferences: Verification - loaded selectedCategories: \(loadedPrefs.selectedCategories)")
+            } else {
+                print("❌ DEBUG savePreferences: Failed to verify saved preferences")
+            }
+
             // Post notification that preferences have changed
             NotificationCenter.default.post(name: Notification.Name("BrowseForwardPreferencesChanged"), object: nil)
+        } else {
+            print("❌ DEBUG savePreferences: Failed to encode preferences")
         }
     }
 }

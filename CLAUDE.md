@@ -16,12 +16,18 @@
 - Replace pull-to-refresh gesture handler
 - Implement slide-in animation for next webpage
 
-**Phase 2: Navigation Stack Management**  
+**Phase 2: Navigation Stack Management (MOVED TO 1.1.8)**
 - Maintain 1 previous + current + 2 next WebViews (~100-150 MB)
 - Add horizontal swipe back to previous webpage
 - Memory management for WebView pool
 
-**Phase 3: Ad Integration**
+**Phase 2.5: Forward History Integration (MOVED TO 1.1.8)**
+- Preload 2-3 BrowseForward URLs into WebView forward history
+- Enable instant right-swipe navigation using native `goForward()`
+- Background WebView pool for seamless content preloading
+- Smart memory management to maintain ~200MB total usage
+
+**Phase 3: Ad Integration (MOVED TO 1.1.8)**
 - Implement ad views between pull-forward content
 - Ad frequency configuration (e.g., every 3rd pull)
 - Ad loading and caching for smooth experience
@@ -36,11 +42,34 @@ feature/pull-forward          # Main pull-forward integration
 ```
 
 ### Version 1.1.8 (Comments System & Advanced Content Curation)
+#### Navigation Stack Management
+- Maintain 1 previous + current + 2 next WebViews (~100-150 MB)
+- Add horizontal swipe back to previous webpage
+- Memory management for WebView pool
+
+#### Forward History Integration
+- Preload 2-3 BrowseForward URLs into WebView forward history
+- Enable instant right-swipe navigation using native `goForward()`
+- Background WebView pool for seamless content preloading
+- Smart memory management to maintain ~200MB total usage
+
+#### Ad Integration
+- Implement ad views between pull-forward content
+- Ad frequency configuration (e.g., every 3rd pull)
+- Ad loading and caching for smooth experience
+- Revenue tracking and analytics integration
+
 #### Comment System on Webpages
 - User comments on articles and webpages
 - Reply threads and nested comments
 - Comment moderation and reporting
 - Integration with existing content system
+
+#### Flexible Toolbar Positioning System
+- User preference settings for toolbar position (bottom horizontal, left vertical, auto-vertical on landscape)
+- Separate HorizontalBottomToolbar and VerticalLeftToolbar components
+- Orientation detection for automatic switching in landscape mode
+- Preserve existing scroll-based animations and functionality
 
 #### Advanced Content Curation (feature/pull-forward-aws)
 - Create radio subcategory under internet archive for audio content
@@ -80,9 +109,74 @@ feature/social-features       # User profiles, following, feeds
 
 #### Content Discovery Features
 - Enhanced search and recommendations
+- Microsoft API web crawler for search function
 - Trending content views
 - Advanced content categorization
 - Performance optimizations
+- *Maybe: Create a floating mini-toolbar that appears over fullscreen content*
+
+---
+
+## Content Sources & APIs
+
+### Currently Integrated
+#### News & Discussion
+- **HackerNews API** - Tech news, startup discussions, programming content
+- **Reddit API** - Current subreddits:
+  - r/TrueReddit (15 items) - thoughtful content
+  - r/Foodforthought (15 items) - intellectual discussions
+  - r/longreads (12 items) - in-depth articles
+  - r/webgames (6 items) - browser games
+  - r/physics (4 items) - physics discussions
+  - r/mealtimevideos (3 items) - educational videos
+  - r/books (3 items) - book discussions
+  - r/food (2 items) - food content
+  - r/indepthstories (1 item) - investigative journalism
+  - **MARKED FOR DELETION:** r/psychology, r/space, r/gadgets, r/movies, r/philosophy
+
+#### Archive & Culture
+- **Internet Archive API** - Books, art, culture, history, science, tech content
+- **Google Books API** - Book metadata and previews
+- **Open Library API** - Book information and availability
+- **Wikipedia API** - Featured articles, geography, health, technology
+
+#### Entertainment
+- **YouTube API** - Music content (electronic, hip-hop, indie, latin, pop, r&b, rock)
+- **TMDB API** - Movie database integration with IMDB
+
+### Planned Integration (NYC/Brooklyn Demo Target)
+#### Local NYC Content
+- **r/nyc** - NYC-specific discussions, local events, city life
+- **TimeOut NYC API** - Events, restaurants, nightlife, local culture
+- **NYC Open Data API** - Local events, cultural happenings, city data
+- **Foursquare API** - NYC restaurant discoveries, local venue recommendations
+- **Gothamist API** - NYC-specific news, culture, local stories
+
+#### Professional & Culture
+- **Medium API** - Tech articles, startup stories, career advice, thought leadership
+- **Complex API** - Hip-hop, sneakers, pop culture, food (NYC-focused content)
+- **Designboom API** - Architecture, design, art, creative culture
+
+#### Entertainment & Discovery
+- **Letterboxd API** - Film reviews, movie discussions, indie cinema
+- **Polygon API** - Gaming, entertainment, tech culture content
+
+### Content Categories by BrowseForward Type
+#### Science & Technology
+- Internet Archive Science, HackerNews, Reddit (r/physics), YouTube Tech
+- *Planned*: Medium API (tech articles), Designboom (design/tech)
+
+#### Culture & Arts
+- Internet Archive (Art, Culture), Reddit (r/books, r/longreads)
+- *Planned*: Complex API, Gothamist, Letterboxd
+
+#### Local & Lifestyle
+- Reddit (r/food, r/mealtimevideos), YouTube Music
+- *Planned*: r/nyc, TimeOut NYC, Foursquare, NYC Open Data
+
+#### Long Reads & Thoughtful Content
+- Reddit (r/TrueReddit, r/longreads, r/Foodforthought, r/indepthstories), Internet Archive Books
+- *Planned*: Medium API
 
 ---
 
@@ -171,6 +265,26 @@ swiftlint
 # Run SwiftFormat (if configured)
 swiftformat .
 ```
+
+---
+
+## Content Filtering
+
+### Paywall Domains
+Domains blocked from BrowseForward content due to paywall restrictions:
+- `wsj.com` - Wall Street Journal
+- `nytimes.com` - New York Times
+- `nymag.com` - New York Magazine
+- `ft.com` - Financial Times
+- `economist.com` - The Economist
+- `bloomberg.com` - Bloomberg
+- `washingtonpost.com` - Washington Post
+- `theathlantic.com` - The Atlantic
+- `telegraph.co.uk` - The Telegraph
+- `bostonglobe.com` - Boston Globe
+- `latimes.com` - Los Angeles Times
+
+**Location in code:** `DumFlow/Features/BrowseForward/ViewModels/BrowseForwardViewModel.swift:41-45`
 
 ---
 

@@ -1,0 +1,40 @@
+1. Lichess - A beautiful website for playing chess and chess variants. No ads, and you can even play anonymously.
+   http://lichess.org
+   Score: 14 | Domain: lichess.org
+
+2. Soul Searchin' - a game about a man who decides to enter his own brain, in order to find the soul.
+   http://www.newcave.com/game/soul-searchin
+   Score: 12 | Domain: newcave.com
+
+3. Where Is Cat? A new Bart Bonte point-n-click game
+   http://www.onemorelevel.com/game/where_is_cat
+   Score: 12 | Domain: onemorelevel.com
+
+4. I made a little typing game called The Type Train. It's a simple little bit of fun. My best time is 42.44s.
+   http://www.lukethompsondesign.com/games/typetrain/
+   Score: 12 | Domain: lukethompsondesign.com
+
+5. TagPro Capture the Flag 1.0 released. I wanted to announce it and thank /r/WebGames.
+   http://tagpro.koalabeast.com/
+   Score: 12 | Domain: tagpro.koalabeast.com
+
+6. [REPOST] Small Worlds - a pixel exploration game with an incredibly huge and beautiful world
+   http://jayisgames.com/games/small-worlds/
+   Score: 12 | Domain: jayisgames.com
+
+7. Winterbells - A simple Orisinal game that's kept me coming back for years.
+   http://www.ferryhalim.com/orisinal/g3/bells.htm
+   Score: 12 | Domain: ferryhalim.com
+
+8. Pokemon Multiverse - Play two copies of Pokemon Red at the same time
+   http://gamejolt.com/games/pokemon-multiverse/32058
+   Score: 12 | Domain: gamejolt.com
+
+9. PoleRider: New game from maker of QWOP
+   http://www.foddy.net/2011/11/poleriders/
+   Score: 12 | Domain: foddy.net
+
+10. There is no game
+   http://onemorelevel.com/game/there_is_no_game
+   Score: 11 | Domain: onemorelevel.com
+

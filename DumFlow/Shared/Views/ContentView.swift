@@ -78,20 +78,9 @@ struct ContentView: View {
                         searchIsFocused = false
                         normalizeAndLoads(urlString)
                     }
-                    
+
                     Spacer()
                 }
-                .background(
-                    Group {
-                        if #available(iOS 26.0, *) {
-                            Rectangle()
-                                .glassEffect(.regular)
-                        } else {
-                            Rectangle()
-                                .fill(.thinMaterial)
-                        }
-                    }
-                )
                 .opacity(searchIsFocused ? 1 : 0)
                 .allowsHitTesting(searchIsFocused)
                 
@@ -100,7 +89,7 @@ struct ContentView: View {
                     // TOP TOOLBAR - Safari-style morphing animation
                     FullToolbar(
                         namespace: toolbarNamespace,
-                        searchIsFocused: _searchIsFocused,
+                        searchIsFocused: $searchIsFocused,
                         searchBarText: $searchBarText,
                         isShowingComments: $isShowingComments,
                         scrollProgress: scrollProgress,
@@ -110,6 +99,12 @@ struct ContentView: View {
                         isShowingProfile: $isShowingProfile,
                         onSubmit: {
                             normalizeAndLoads(searchBarText)
+                        },
+                        onSearchBarTap: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                scrollProgress = 0.0
+                                searchIsFocused = true
+                            }
                         }
                     )
                     // Removed intercepting tap gesture that blocked focus
@@ -357,7 +352,7 @@ struct ContentView: View {
                                 if webBrowser.canGoForward {
                                     webBrowser.goForward()
                                 } else {
-                                    webBrowser.browseForward()
+                                    webBrowser.browseForward(useInstantDisplay: true)
                                 }
                             } label: {
                                 Image(systemName: "arrow.right")
@@ -507,7 +502,7 @@ struct FullToolbar: View {
     @Environment(\.colorScheme) var colorScheme
     let namespace: Namespace.ID
 
-    var searchIsFocused: FocusState<Bool>.Binding
+    @FocusState.Binding var searchIsFocused: Bool
     @Binding var searchBarText: String
     @Binding var isShowingComments: Bool
     let scrollProgress: CGFloat
@@ -516,6 +511,7 @@ struct FullToolbar: View {
     @Binding var isShowingTrending: Bool
     @Binding var isShowingProfile: Bool
     var onSubmit: (() -> Void)?
+    var onSearchBarTap: (() -> Void)?
     
     let topToolbarHeight: CGFloat = 44
     
@@ -569,13 +565,16 @@ struct FullToolbar: View {
     
     private var searchBarSection: some View {
         // Search capsule with same background as top buttons
-            HStack(spacing: 0) {
-                if searchIsFocused {
-                    // TextField when focused
+            ZStack {
+                // TextField - always present for focus
+                HStack(spacing: 0) {
+                    // Left padding
+                    Spacer().frame(width: 15)
+
                     TextField("Search or enter website name", text: $searchBarText)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                        .font(.system(size: 17, weight: .regular))
+                        .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
                         .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
                         .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                         .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
@@ -584,7 +583,7 @@ struct FullToolbar: View {
                         .onSubmit {
                             onSubmit?()
                         }
-                    
+
                     // Clear button when focused and has text
                     if !searchBarText.isEmpty {
                         Button {
@@ -596,7 +595,15 @@ struct FullToolbar: View {
                         }
                         .padding(.leading, 8)
                     }
-                } else {
+
+                    // Right padding
+                    Spacer().frame(width: 15)
+                }
+                .frame(height: 36)
+                .opacity(searchIsFocused ? 1 : 0)
+
+                // URL text with buttons - visible when not focused
+                if !searchIsFocused {
                     // ZStack layout for better text centering without spacer constraints
                     ZStack {
                         // Centered text with maximum available space
@@ -609,9 +616,14 @@ struct FullToolbar: View {
                             .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                print("🔥 URL TEXT TAPPED!")
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    searchIsFocused = true
+                                if scrollProgress > 0.1 {
+                                    // When compact, use the callback to reset scroll and focus
+                                    onSearchBarTap?()
+                                } else {
+                                    // When full size, just focus
+                                    withAnimation(.easeInOut(duration: 0.15)) {
+                                        searchIsFocused = true
+                                    }
                                 }
                             }
                             .padding(.horizontal, max(2, 44 - (scrollProgress * 42)))
@@ -679,7 +691,7 @@ struct FullToolbar: View {
                 // Loading progress bar
                 VStack {
                     Spacer()
-                    if webBrowser.loadingProgress > 0 && webBrowser.loadingProgress < 1.0 {
+                    if webBrowser.loadingProgress > 0 && webBrowser.loadingProgress < 1.0 && !webBrowser.isUsingInstantContent {
                         Rectangle()
                             .fill(webBrowser.isForwardNavigation ? .orange : .blue)
                             .frame(height: 2)
@@ -689,7 +701,6 @@ struct FullToolbar: View {
                 }
                 .clipShape(Capsule())
             )
-            .scaleEffect(searchIsFocused ? 1.05 : 1.0)
             .animation(.easeInOut(duration: 0.3), value: scrollProgress)
             .animation(.easeInOut(duration: 0.15), value: searchIsFocused)
     }
