@@ -25,6 +25,10 @@ class BrowseForwardPreloadManager: ObservableObject {
 
     weak var browseForwardViewModel: BrowseForwardViewModel?
 
+    // References for positioning background WebView
+    weak var currentWebView: WKWebView?
+    weak var parentView: UIView?
+
     // Preload queue management
     private var preloadQueue: [String] = []
     private let maxPreloadQueue = 3
@@ -46,9 +50,24 @@ class BrowseForwardPreloadManager: ObservableObject {
     }
 
     deinit {
-        Task { @MainActor in
-            cleanup()
+        // Perform immediate cleanup without using Task since we're deinitializing
+        preloadTimer?.invalidate()
+        preloadTimer = nil
+
+        if let observer = memoryWarningObserver {
+            NotificationCenter.default.removeObserver(observer)
+            memoryWarningObserver = nil
         }
+
+        // Stop loading and clear WebView immediately
+        backgroundWebView?.stopLoading()
+        backgroundWebView?.navigationDelegate = nil
+        backgroundWebView?.loadHTMLString("", baseURL: nil) // Clear content
+        backgroundWebView?.removeFromSuperview()
+        backgroundWebView = nil
+        preloadedURL = nil
+
+        preloadLog("Cleaned up preload manager in deinit")
     }
 
     // MARK: - Background WebView Setup
@@ -84,12 +103,58 @@ class BrowseForwardPreloadManager: ObservableObject {
     private func handleMemoryWarning() {
         preloadLog("⚠️ Memory warning received - clearing preloaded content")
         backgroundWebView?.stopLoading()
+        backgroundWebView?.navigationDelegate = nil
         backgroundWebView?.loadHTMLString("", baseURL: nil) // Clear content
+
+        // Clear website data to free memory
+        if let webView = backgroundWebView {
+            webView.configuration.websiteDataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                modifiedSince: Date.distantPast
+            ) {
+                preloadLog("💾 Cleared website data due to memory pressure")
+            }
+        }
+
         preloadedURL = nil
         preloadLog("💾 Cleared preloaded content due to memory pressure")
     }
 
     // MARK: - Public Interface
+
+    /// Set references to current WebView and parent for positioning
+    func setCurrentWebView(_ webView: WKWebView) {
+        currentWebView = webView
+        parentView = webView.superview
+        preloadLog("Set current WebView reference")
+
+        // If we already have preloaded content, position it behind now
+        positionBackgroundWebViewIfReady()
+    }
+
+    /// Position background WebView behind current one when content is ready
+    private func positionBackgroundWebViewIfReady() {
+        guard let backgroundWebView = backgroundWebView,
+              let currentWebView = currentWebView,
+              let parentView = parentView,
+              preloadedURL != nil else {
+            return
+        }
+
+        // Only position if not already in view hierarchy
+        if backgroundWebView.superview == nil {
+            preloadLog("📍 Positioning background WebView behind current one")
+
+            // Configure for reveal effect
+            backgroundWebView.frame = currentWebView.frame
+            backgroundWebView.transform = .identity
+            backgroundWebView.isHidden = false
+            backgroundWebView.alpha = 1.0
+
+            // Position behind current WebView
+            parentView.insertSubview(backgroundWebView, belowSubview: currentWebView)
+        }
+    }
 
     /// Start preloading the next BrowseForward content
     func startPreloading() {
@@ -132,6 +197,9 @@ class BrowseForwardPreloadManager: ObservableObject {
         // Track successful preload usage
         successfulPreloads += 1
         updatePreloadHitRate()
+
+        // Clean up the returned WebView's navigation delegate to prevent leaks
+        webView.navigationDelegate = nil
 
         // Clear the preloaded state
         self.preloadedURL = nil
@@ -190,6 +258,9 @@ class BrowseForwardPreloadManager: ObservableObject {
 
         preloadLog("⚡ Providing instant preloaded content")
 
+        // Clean up the returned WebView's navigation delegate to prevent leaks
+        webView.navigationDelegate = nil
+
         // Clear the preloaded state for reuse
         let result = (webView: webView, url: preloadedURL)
         self.preloadedURL = nil
@@ -204,6 +275,11 @@ class BrowseForwardPreloadManager: ObservableObject {
     /// Check if content is ready for instant display
     func hasPreloadedContent(for url: String) -> Bool {
         return preloadedURL == url && backgroundWebView != nil
+    }
+
+    /// Public cleanup method for external cleanup requests
+    func cleanupResources() {
+        cleanup()
     }
 
     // MARK: - Private Methods
@@ -258,17 +334,37 @@ class BrowseForwardPreloadManager: ObservableObject {
         let urlString = url.absoluteString
         preloadLog("Loading in background: \(cleanURLForLogging(urlString))")
 
-        // Create a continuation to wait for navigation completion
-        await withCheckedContinuation { continuation in
+        // Create a continuation to wait for navigation completion with timeout
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var hasResumed = false
+            let coordinatorWrapper = CoordinatorWrapper()
+
             let coordinator = BackgroundWebViewCoordinator(
                 onComplete: { [weak self] success in
-                    self?.handlePreloadComplete(url: urlString, success: success)
-                    continuation.resume()
+                    if !hasResumed {
+                        hasResumed = true
+                        self?.handlePreloadComplete(url: urlString, success: success)
+                        continuation.resume()
+                    }
                 }
             )
 
-            // Set navigation delegate temporarily
+            coordinatorWrapper.coordinator = coordinator
+
+            // Set navigation delegate temporarily - coordinator will be deallocated after completion
             webView.navigationDelegate = coordinator
+            coordinator.webView = webView
+
+            // Add timeout to prevent continuation leaks
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) { [weak self] in
+                if !hasResumed {
+                    hasResumed = true
+                    preloadLog("⏰ Preload timeout for: \(self?.cleanURLForLogging(urlString) ?? urlString)")
+                    webView.navigationDelegate = nil
+                    self?.handlePreloadComplete(url: urlString, success: false)
+                    continuation.resume()
+                }
+            }
 
             // Load the URL
             webView.load(URLRequest(url: url))
@@ -286,6 +382,9 @@ class BrowseForwardPreloadManager: ObservableObject {
             } else {
                 preloadLog("✅ Preload completed for: \(cleanURLForLogging(url))")
             }
+
+            // Position the background WebView behind current one immediately
+            positionBackgroundWebViewIfReady()
         } else {
             preloadLog("❌ Preload failed for: \(cleanURLForLogging(url))")
         }
@@ -305,11 +404,27 @@ class BrowseForwardPreloadManager: ObservableObject {
 
     private func cleanup() {
         preloadTimer?.invalidate()
+        preloadTimer = nil
+
         if let observer = memoryWarningObserver {
             NotificationCenter.default.removeObserver(observer)
+            memoryWarningObserver = nil
         }
+
         backgroundWebView?.stopLoading()
         backgroundWebView?.navigationDelegate = nil
+        backgroundWebView?.loadHTMLString("", baseURL: nil) // Clear content
+
+        // Clear website data to free memory
+        if let webView = backgroundWebView {
+            webView.configuration.websiteDataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                modifiedSince: Date.distantPast
+            ) {
+                preloadLog("💾 Cleared website data in cleanup")
+            }
+        }
+
         backgroundWebView?.removeFromSuperview()
         backgroundWebView = nil
         preloadedURL = nil
@@ -332,28 +447,40 @@ class BrowseForwardPreloadManager: ObservableObject {
     }
 }
 
+// MARK: - Coordinator Wrapper to prevent deallocation
+private class CoordinatorWrapper {
+    var coordinator: BackgroundWebViewCoordinator?
+}
+
 // MARK: - Background WebView Navigation Delegate
 private class BackgroundWebViewCoordinator: NSObject, WKNavigationDelegate {
 
     let onComplete: (Bool) -> Void
+    weak var webView: WKWebView?
 
     init(onComplete: @escaping (Bool) -> Void) {
         self.onComplete = onComplete
         super.init()
     }
 
+    private func completeAndCleanup(_ success: Bool) {
+        // Clear the navigation delegate to break potential retain cycles
+        webView?.navigationDelegate = nil
+        onComplete(success)
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         preloadLog("Background navigation completed successfully")
-        onComplete(true)
+        completeAndCleanup(true)
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         preloadLog("Background navigation failed: \(error.localizedDescription)")
-        onComplete(false)
+        completeAndCleanup(false)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         preloadLog("Background provisional navigation failed: \(error.localizedDescription)")
-        onComplete(false)
+        completeAndCleanup(false)
     }
 }

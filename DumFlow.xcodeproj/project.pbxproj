@@ -484,7 +484,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = /Users/isaacherskowitz/Swift/_DumFlow/DumFlow/DumFlow/Info.plist;
+				INFOPLIST_FILE = DumFlow/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Shtell;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "DumFlow needs access to save images from web pages to your Photos library.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -533,7 +533,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = /Users/isaacherskowitz/Swift/_DumFlow/DumFlow/DumFlow/Info.plist;
+				INFOPLIST_FILE = DumFlow/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Shtell;
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "DumFlow needs access to save images from web pages to your Photos library.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

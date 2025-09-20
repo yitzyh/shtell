@@ -210,17 +210,6 @@ struct ContentView: View {
                 .environmentObject(webPageViewModel)
                 .environmentObject(webBrowser)
         }
-        .sheet(isPresented: $isShowingTrending) {
-            TrendPageView()
-                .environmentObject(webPageViewModel)
-                .environmentObject(webBrowser)
-                .environmentObject(authViewModel)
-                .environmentObject(browseForwardViewModel)
-        }
-        .sheet(isPresented: $isShowingProfile) {
-            ProfileView()
-                .environmentObject(authViewModel)
-        }
         .onAppear{
             initViewModel()
             searchBarText = webBrowser.urlString
@@ -290,9 +279,10 @@ struct ContentView: View {
                             // Save button - disappears last (0.66 to 1.0)
                             if scrollProgress < 1.0 {
                                 Button {
-                                    print("Toggle save for: \(webBrowser.urlString)")
+                                    handleSaveButtonTap()
                                 } label: {
-                                    Image(systemName: "bookmark")
+                                    let isSaved = webPageViewModel.uiState.savedWebPageStates.contains(webBrowser.urlString.normalizedURL ?? webBrowser.urlString)
+                                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                                         .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
                                         .font(.system(size: 22, weight: .medium))
                                         .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
@@ -466,6 +456,43 @@ struct ContentView: View {
 
     }
     
+    // MARK: - Save Handler
+    private func handleSaveButtonTap() {
+        guard authViewModel.signedInUser != nil else { return }
+        guard let normalizedURL = webBrowser.urlString.normalizedURL else { return }
+
+        // Check if currently saved (for immediate UI feedback)
+        let currentlySaved = webPageViewModel.uiState.savedWebPageStates.contains(normalizedURL)
+
+        // Check if we have a current webpage for this URL
+        if let currentWebPage = webPageViewModel.contentState.webPage,
+           currentWebPage.urlString == normalizedURL {
+            // We have the webpage, just toggle save
+            webPageViewModel.toggleSave(on: currentWebPage)
+        } else if currentlySaved {
+            // It's saved but we don't have the WebPage object, need to unsave
+            // Remove from saved state immediately for instant UI feedback
+            webPageViewModel.uiState.savedWebPageStates.remove(normalizedURL)
+            // TODO: Also need to handle the CloudKit unsave operation
+        } else {
+            // Not saved and no WebPage exists, need to create and save
+            // Add to saved state immediately for instant UI feedback
+            webPageViewModel.uiState.savedWebPageStates.insert(normalizedURL)
+
+            // Create webpage in background, it will be properly saved
+            webPageViewModel.createWebPage(for: normalizedURL) { newWebPage in
+                if let webPage = newWebPage {
+                    // The WebPage is created, now properly save it (will handle CloudKit)
+                    // Note: We already added to savedWebPageStates above for instant UI
+                    // This will sync with CloudKit and update counts
+                    if !currentlySaved {
+                        webPageViewModel.toggleSave(on: webPage)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Quote Handlers
     private func handleQuoteText(_ quotedText: String, _ selector: String, _ offset: Int) {
         // Store quote data for when comment sheet opens
@@ -534,9 +561,12 @@ struct FullToolbar: View {
     
     // MARK: - Subviews
     private var trendingButton: some View {
-        Button {
-            isShowingTrending = true
-        } label: {
+        NavigationLink(destination: TrendPageView()
+            .environmentObject(webPageViewModel)
+            .environmentObject(webBrowser)
+            .environmentObject(authViewModel)
+            .environmentObject(browseForwardViewModel)
+        ) {
             ZStack {
                 if #available(iOS 26.0, *) {
                     Circle()
@@ -547,7 +577,7 @@ struct FullToolbar: View {
                         .fill(.thinMaterial)
                         .frame(width: 44, height: 44)
                 }
-                
+
                 Image(systemName: "network")
                     .font(.system(size: 22, weight: .medium))
                     .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
@@ -737,9 +767,9 @@ struct FullToolbar: View {
                 .buttonStyle(.plain)
             } else {
                 // Profile button when not searching
-                Button {
-                    isShowingProfile = true
-                } label: {
+                NavigationLink(destination: ProfileView()
+                    .environmentObject(authViewModel)
+                ) {
                     ZStack {
                         if #available(iOS 26.0, *) {
                             Circle()
@@ -750,7 +780,7 @@ struct FullToolbar: View {
                                 .fill(.thinMaterial)
                                 .frame(width: 44, height: 44)
                         }
-                        
+
                         Image(systemName: "person")
                             .font(.system(size: 22, weight: .medium))
                             .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)

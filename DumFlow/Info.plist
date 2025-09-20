@@ -2,12 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>AWS_ACCESS_KEY_ID</key>
-	<string>AKIAUON2G4CIEFYOZEJX</string>
-	<key>AWS_DEFAULT_REGION</key>
-	<string>us-east-1</string>
-	<key>AWS_SECRET_ACCESS_KEY</key>
-	<string>SVMqfKzPRgtLbL9JijZqQegrpWRkvLsR2caXYcy9</string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleURLTypes</key>

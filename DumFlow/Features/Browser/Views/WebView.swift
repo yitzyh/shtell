@@ -49,6 +49,7 @@ private struct SimulatorHelper {
     }
 }
 
+@MainActor
 class WebBrowser: ObservableObject{
 
     @Published var urlString = "https://www.google.com"
@@ -289,10 +290,8 @@ class WebBrowser: ObservableObject{
     }
     
     func advanceSplashScreen() {
-        DispatchQueue.main.async {
-            self.splashScreenShowCount += 1
-            self.splashScreenCurrentIndex = (self.splashScreenCurrentIndex + 1) % 3
-        }
+        self.splashScreenShowCount += 1
+        self.splashScreenCurrentIndex = (self.splashScreenCurrentIndex + 1) % 3
     }
     
     func resetSplashScreen() {
@@ -377,11 +376,13 @@ class WebBrowser: ObservableObject{
     
     @MainActor
     func browseForward(category: String? = nil, useInstantDisplay: Bool = false) {
+        #if DEBUG
         print("🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===")
         print("🚀 DEBUG browseForward: Called with category: \(category ?? "nil"), useInstantDisplay: \(useInstantDisplay)")
         print("🚀 DEBUG browseForward: Stored browseForwardCategory: \(browseForwardCategory ?? "nil")")
         print("🚀 DEBUG browseForward: canGoForward: \(canGoForward)")
         print("🚀 DEBUG browseForward: browseForwardViewModel exists: \(browseForwardViewModel != nil)")
+        #endif
 
         // If a category is provided, remember it for future browseForward calls
         if let category = category {
@@ -623,7 +624,14 @@ struct WebView: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.allowsPictureInPictureMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        
+
+        #if DEBUG
+        // Suppress WebKit privacy console spam in debug builds
+        if #available(iOS 14.0, *) {
+            config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        }
+        #endif
+
         // Add message handler for comment taps
         config.userContentController.add(context.coordinator, name: "commentTap")
         
@@ -633,6 +641,12 @@ struct WebView: UIViewRepresentable {
         if SimulatorHelper.isSimulator {
             // More aggressive caching and network settings for simulator
             config.websiteDataStore = WKWebsiteDataStore.nonPersistent()
+
+            // Suppress privacy-related console spam in simulator
+            config.suppressesIncrementalRendering = true
+            if #available(iOS 15.0, *) {
+                config.preferences.isFraudulentWebsiteWarningEnabled = false
+            }
         }
         
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -749,9 +763,7 @@ struct WebView: UIViewRepresentable {
         func goForward() { webView?.goForward() }
         
         @objc func handleForwardSwipe(_ gesture: UISwipeGestureRecognizer) {
-            DispatchQueue.main.async {
-                self.webBrowser.browseForward()
-            }
+            self.webBrowser.browseForward()
         }
         
         @objc func handleRefresh(_ refreshControl: UIRefreshControl) {
@@ -860,10 +872,10 @@ struct WebView: UIViewRepresentable {
 
         @MainActor
         private func performInstantSlideTransition(to newWebView: WKWebView, url: String, from currentWebView: WKWebView) async {
-            print("🎬 SLIDE: Starting instant slide transition")
+            print("🎬 REVEAL: Starting instant reveal transition")
 
             guard let parentView = currentWebView.superview else {
-                print("🎬 SLIDE: No parent view, falling back")
+                print("🎬 REVEAL: No parent view, falling back")
                 return
             }
 
@@ -881,21 +893,33 @@ struct WebView: UIViewRepresentable {
             newWebView.uiDelegate = self
             newWebView.scrollView.delegate = self
 
-            // Start new WebView above visible area for slide-down animation
-            newWebView.transform = CGAffineTransform(translationX: 0, y: -parentView.bounds.height)
-            parentView.addSubview(newWebView)
+            // Position new WebView BEHIND current WebView for reveal effect (if not already positioned)
+            newWebView.transform = .identity // Background stays in place
+
+            if newWebView.superview == nil {
+                // WebView not yet positioned - add it behind current
+                parentView.insertSubview(newWebView, belowSubview: currentWebView)
+                print("🎬 REVEAL: Positioned new WebView behind current")
+            } else {
+                // WebView already positioned by preload manager - just ensure proper frame
+                newWebView.frame = currentWebView.frame
+                print("🎬 REVEAL: Using already-positioned background WebView")
+            }
 
             // Update WebBrowser reference immediately
             webBrowser.wkWebView = newWebView
             webBrowser.urlString = url
             webBrowser.isUserInitiatedNavigation = false // This was already loaded
 
-            // Animate slide down with improved timing
+            // Animate reveal effect - current page slides down revealing new page behind
             await withCheckedContinuation { continuation in
-                UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.85, initialSpringVelocity: 0.3) {
-                    newWebView.transform = .identity
+                UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.4) {
+                    // Current page slides down and off screen
                     currentWebView.transform = CGAffineTransform(translationX: 0, y: parentView.bounds.height)
-                    currentWebView.alpha = 0.8
+                    currentWebView.alpha = 0.9
+
+                    // New page stays in place (already revealed behind)
+                    newWebView.transform = .identity
                 } completion: { _ in
                     // Clean up old WebView
                     currentWebView.removeFromSuperview()
@@ -912,7 +936,7 @@ struct WebView: UIViewRepresentable {
                     forwardSwipeGesture.numberOfTouchesRequired = 1
                     newWebView.addGestureRecognizer(forwardSwipeGesture)
 
-                    print("🎬 SLIDE: Transition completed")
+                    print("🎬 REVEAL: Transition completed")
                     continuation.resume()
                 }
             }
@@ -1047,6 +1071,10 @@ struct WebView: UIViewRepresentable {
         func setupWebView(_ webView: WKWebView) {
             self.webView = webView
             webBrowser.wkWebView = webView
+
+            // Set current WebView reference for preload manager positioning
+            webBrowser.preloadManager?.setCurrentWebView(webView)
+
             urlObservation = webView.observe(\.url, options: [.new]) { [weak self] webView, change in
                 guard let self = self else { return }
                 if let url = change.newValue {
@@ -1675,6 +1703,26 @@ class ArrowRefreshControl: UIRefreshControl {
         // Enhanced alpha progression for better visibility
         arrowView.alpha = min(1.0, progress * 1.2)
 
+        // REVEAL EFFECT: Apply real-time webpage transform during pull
+        if let webBrowser = webBrowser,
+           let currentWebView = scrollView as? WKWebView,
+           progress > 0.1 { // Start reveal effect after minimal pull
+
+            // Gradually slide current webpage down as user pulls
+            let revealProgress = min(progress * 0.3, 0.3) // Cap at 30% of screen height
+            let slideDistance = revealProgress * scrollView.bounds.height
+
+            // Apply transform to show reveal preview
+            UIView.animate(withDuration: 0.1, delay: 0, options: [.allowUserInteraction, .beginFromCurrentState]) {
+                currentWebView.transform = CGAffineTransform(translationX: 0, y: slideDistance)
+            }
+        } else if let currentWebView = scrollView as? WKWebView {
+            // Reset transform when not pulling
+            UIView.animate(withDuration: 0.2, delay: 0, options: [.allowUserInteraction, .beginFromCurrentState]) {
+                currentWebView.transform = .identity
+            }
+        }
+
         // Update color and add visual enhancements based on pull progress
         if let webBrowser = webBrowser {
             let baseColor = webBrowser.pageBackgroundIsDark ? UIColor.white : UIColor.black
@@ -1702,6 +1750,14 @@ class ArrowRefreshControl: UIRefreshControl {
     override func endRefreshing() {
         // Remove any pulse animation
         arrowView.layer.removeAnimation(forKey: "pulse")
+
+        // Reset WebView transform if needed (in case reveal animation was interrupted)
+        if let scrollView = superview as? UIScrollView,
+           let currentWebView = scrollView as? WKWebView {
+            UIView.animate(withDuration: 0.2) {
+                currentWebView.transform = .identity
+            }
+        }
 
         // Animate arrow disappearing with spring effect for satisfying feedback
         UIView.animate(withDuration: 0.2, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5, animations: {

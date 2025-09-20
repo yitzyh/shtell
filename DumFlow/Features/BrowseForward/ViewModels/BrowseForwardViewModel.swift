@@ -13,6 +13,13 @@ private func browseForwardLog(_ message: String) {
 private func browseForwardLog(_ message: String) {}
 #endif
 
+// MARK: - Error Types
+enum BrowseForwardError: Error {
+    case noItemsAvailable
+    case noCategoriesAvailable
+    case queueInitializationFailed
+}
+
 // MARK: - BrowseForwardItem Model (DEPRECATED - Use AWSWebPageItem directly)
 
 @available(iOS 13.0, *)
@@ -33,7 +40,7 @@ class BrowseForwardViewModel: ObservableObject {
     @Published private var recentlyShownURLs: Set<String> = []
     private let maxRecentlyShown = 50 // Remember last 50 URLs
     private weak var webPageViewModel: WebPageViewModel?
-    private let dynamoDBService: DynamoDBWebPageService = DynamoDBWebPageService.shared
+    private let apiService: BrowseForwardAPIService = BrowseForwardAPIService.shared
     
     // Debouncing for category changes
     private var debounceTask: Task<Void, Never>?
@@ -45,7 +52,7 @@ class BrowseForwardViewModel: ObservableObject {
     ]
 
     /// Select item avoiding recent duplicates
-    private func selectItemAvoidingDuplicates(from items: [BrowseForwardItem]) -> BrowseForwardItem {
+    private func selectItemAvoidingDuplicates(from items: [BrowseForwardItem]) throws -> BrowseForwardItem {
         // Filter out recently shown items
         let availableItems = items.filter { !recentlyShownURLs.contains($0.url) }
 
@@ -53,7 +60,12 @@ class BrowseForwardViewModel: ObservableObject {
         let finalItems = availableItems.isEmpty ? items : availableItems
 
         // Pick random from filtered pool
-        let randomItem = finalItems.randomElement()!
+        guard let randomItem = finalItems.randomElement() else {
+            // This should never happen given the filtering logic above, but provide a safe fallback
+            browseForwardLog("⚠️ No items available after filtering - this should not happen")
+            // Return a default item or handle gracefully
+            throw BrowseForwardError.noItemsAvailable
+        }
 
         // Track this selection
         recentlyShownURLs.insert(randomItem.url)
@@ -100,7 +112,16 @@ class BrowseForwardViewModel: ObservableObject {
         
         // Initialize queue if empty
         if browseQueue.isEmpty {
-            await initializeBrowseQueue()
+            do {
+                await initializeBrowseQueue()
+                if browseQueue.isEmpty {
+                    throw BrowseForwardError.queueInitializationFailed
+                }
+            } catch {
+                browseForwardLog("❌ Queue initialization failed in getRandomURL: \(error)")
+                // Return fallback URL instead of crashing
+                return "https://en.wikipedia.org/wiki/Special:Random"
+            }
         }
         
         // Get next URL from synchronized queue
@@ -121,7 +142,7 @@ class BrowseForwardViewModel: ObservableObject {
             }
             
             // COMBINED POOL APPROACH: Get random item from entire category (avoiding recent duplicates)
-            let randomItem = selectItemAvoidingDuplicates(from: items)
+            let randomItem = try selectItemAvoidingDuplicates(from: items)
             print("✅ Selected random item: \(randomItem.title) from \(randomItem.domain)")
             return randomItem.url
             
@@ -143,7 +164,7 @@ class BrowseForwardViewModel: ObservableObject {
         
         // Fetch from AWS and cache
         browseForwardLog("🔄 Fetching fresh items for category: \(category)")
-        let awsItems = try await dynamoDBService.fetchBFQueueItems(category: category, isActiveOnly: true, limit: 100)
+        let awsItems = try await apiService.fetchBFQueueItems(category: category, isActiveOnly: true, limit: 1000)
         
         // Cache the results
         simpleCache[category] = awsItems
@@ -166,10 +187,10 @@ class BrowseForwardViewModel: ObservableObject {
     }
     
     /// Get content based on user preferences from the new BrowseForwardPreferencesView
-    func fetchByUserPreferences(limit: Int = 200) async throws -> [BrowseForwardItem] {
+    func fetchByUserPreferences(limit: Int = 500) async throws -> [BrowseForwardItem] {
         browseForwardLog("🔍 DEBUG fetchByUserPreferences: === STARTING fetchByUserPreferences ===")
         browseForwardLog("🔍 DEBUG fetchByUserPreferences: limit: \(limit)")
-        browseForwardLog("🔍 DEBUG fetchByUserPreferences: dynamoDBService ready")
+        browseForwardLog("🔍 DEBUG fetchByUserPreferences: apiService ready")
         
         // Load user preferences from UserDefaults
         let userDefaultsData = UserDefaults.standard.data(forKey: "BrowseForwardPreferences")
@@ -179,7 +200,7 @@ class BrowseForwardViewModel: ObservableObject {
               let preferences = try? JSONDecoder().decode(BrowseForwardPreferences.self, from: data) else {
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: No preferences found, using all active content")
             // No preferences set, use ALL active content as default
-            let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+            let result = try await apiService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: All active content returned \(result.count) items")
             return result
         }
@@ -199,7 +220,7 @@ class BrowseForwardViewModel: ObservableObject {
         // If no selections, return all active content
         if preferences.isDefaultMode {
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: Using default mode - calling fetchBFQueueItems with isActive=true")
-            let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+            let result = try await apiService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: Default mode returned \(result.count) items")
             return result
         }
@@ -209,7 +230,10 @@ class BrowseForwardViewModel: ObservableObject {
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: Using selected categories: \(preferences.selectedCategories)")
 
             // Pick one random category from user's selections
-            let randomCategory = preferences.selectedCategories.randomElement()!
+            guard let randomCategory = preferences.selectedCategories.randomElement() else {
+                browseForwardLog("⚠️ No categories in selectedCategories despite !isEmpty check")
+                throw BrowseForwardError.noCategoriesAvailable
+            }
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected random category: '\(randomCategory)'")
 
             // Check if user has subcategory selections for this category
@@ -220,7 +244,7 @@ class BrowseForwardViewModel: ObservableObject {
                 browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected random subcategory: '\(selectedSubcategory ?? "nil")'")
             }
 
-            let result = try await dynamoDBService.fetchBFQueueItems(
+            let result = try await apiService.fetchBFQueueItems(
                 category: randomCategory,
                 subcategory: selectedSubcategory,
                 isActiveOnly: true,
@@ -233,7 +257,7 @@ class BrowseForwardViewModel: ObservableObject {
 
         // Fallback: return all active content
         browseForwardLog("🔍 DEBUG fetchByUserPreferences: Fallback: fetching all active content")
-        let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+        let result = try await apiService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
         browseForwardLog("🔍 DEBUG fetchByUserPreferences: Fallback returned \(result.count) items")
         return result
     }
@@ -265,7 +289,7 @@ class BrowseForwardViewModel: ObservableObject {
                 currentIndex = 0
                 
                 // Fetch new content based on preferences
-                let newItems = try await fetchByUserPreferences(limit: 20)
+                let newItems = try await fetchByUserPreferences(limit: 250)
                 browseQueue = newItems
                 
                 browseForwardLog("🔄 Queue refreshed with \(browseQueue.count) items")
@@ -286,7 +310,7 @@ class BrowseForwardViewModel: ObservableObject {
         
         // Use the new category-based system - fetch all active content
         browseForwardLog("🎲 Fetching all active content as default")
-        let result = try await dynamoDBService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
+        let result = try await apiService.fetchBFQueueItems(category: nil, subcategory: nil, isActiveOnly: true, limit: limit)
         
         browseForwardLog("🎲 Default content result count: \(result.count)")
         browseForwardLog("🎲 === ENDING fetchDefaultContent ===")
@@ -300,7 +324,7 @@ class BrowseForwardViewModel: ObservableObject {
         isLoading = true
         
         do {
-            let items = try await fetchByUserPreferences(limit: 20)
+            let items = try await fetchByUserPreferences(limit: 250)
             browseQueue = items
             currentIndex = 0
             browseForwardLog("✅ Queue initialized with \(browseQueue.count) items")
@@ -308,7 +332,7 @@ class BrowseForwardViewModel: ObservableObject {
             browseForwardLog("❌ Failed to initialize queue: \(error)")
             // Fallback to default content
             do {
-                let defaultItems = try await fetchDefaultContent(limit: 15)
+                let defaultItems = try await fetchDefaultContent(limit: 200)
                 browseQueue = defaultItems
                 currentIndex = 0
                 browseForwardLog("✅ Queue initialized with \(browseQueue.count) default items")
@@ -353,14 +377,14 @@ class BrowseForwardViewModel: ObservableObject {
         isLoading = true
         
         do {
-            let moreItems = try await fetchByUserPreferences(limit: 15)
+            let moreItems = try await fetchByUserPreferences(limit: 200)
             browseQueue.append(contentsOf: moreItems)
             browseForwardLog("✅ Added \(moreItems.count) more items to queue. Total: \(browseQueue.count)")
         } catch {
             browseForwardLog("❌ Failed to load more items: \(error)")
             // Fallback to default content
             do {
-                let fallbackItems = try await fetchDefaultContent(limit: 15)
+                let fallbackItems = try await fetchDefaultContent(limit: 200)
                 browseQueue.append(contentsOf: fallbackItems)
                 browseForwardLog("✅ Added \(fallbackItems.count) fallback items to queue. Total: \(browseQueue.count)")
             } catch {

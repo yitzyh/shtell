@@ -46,7 +46,7 @@ struct TrendPageView: View {
             case .commentCount: return "bubble.left.and.text.bubble.right"
             case .dateCreated: return "clock.arrow.trianglehead.counterclockwise.rotate.90"
             case .likeCount: return "heart"
-            case .saved: return "star"
+            case .saved: return "bookmark"
             }
         }
     }

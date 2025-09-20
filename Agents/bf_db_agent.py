@@ -12,6 +12,9 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from collections import defaultdict
 import re
+import requests
+import time
+from bs4 import BeautifulSoup
 from typing import List, Dict, Any, Optional, Tuple
 
 # AWS Configuration
@@ -497,6 +500,8 @@ class BrowseForwardDB:
             metadata['contentType'] = {'S': 'video'}
         elif 'webgames' in source:
             metadata['contentType'] = {'S': 'game'}
+        elif 'letterboxd' in source:
+            metadata['contentType'] = {'S': 'review'}
         else:
             metadata['contentType'] = {'S': 'article'}
 
@@ -520,6 +525,10 @@ class BrowseForwardDB:
             tags.append('reddit')
             subreddit = source.replace('reddit-', '')
             tags.append(subreddit)
+        elif 'letterboxd' in source:
+            tags.append('letterboxd')
+            tags.append('movies')
+            tags.append('reviews')
 
         # Content-based tags
         keywords = {
@@ -622,6 +631,49 @@ class BrowseForwardDB:
             }
         )
 
+    # ========== API INTEGRATION METHODS ==========
+
+    def integrate_letterboxd(self, limit: int = 100) -> Dict[str, Any]:
+        """Integrate Letterboxd movie reviews and lists"""
+        print("🎬 LETTERBOXD API INTEGRATION")
+        print("=" * 60)
+
+        # Note: Letterboxd doesn't have a public API, so this would use web scraping
+        # or a third-party service. For now, this is a placeholder structure.
+
+        print("⚠️  Letterboxd integration requires web scraping setup")
+        print("   Popular lists to scrape:")
+        print("   • Top 250 films")
+        print("   • Popular reviews this week")
+        print("   • Staff picks")
+        print("   • Trending films")
+
+        # Placeholder data structure for Letterboxd content
+        letterboxd_items = [
+            {
+                'url': 'https://letterboxd.com/film/parasite-2019/',
+                'title': 'Parasite (2019) - Letterboxd Review',
+                'source': 'letterboxd',
+                'bfCategory': 'movies',
+                'contentType': 'review',
+                'tags': ['letterboxd', 'movies', 'reviews', 'korean-cinema']
+            }
+        ]
+
+        added_count = 0
+        for item in letterboxd_items:
+            # In a real implementation, this would add items to DynamoDB
+            print(f"   📽️  Would add: {item['title']}")
+            added_count += 1
+
+        print(f"\n✅ Letterboxd integration ready: {added_count} items prepared")
+
+        return {
+            'source': 'letterboxd',
+            'items_prepared': added_count,
+            'status': 'integration_framework_ready'
+        }
+
 # ========== CLI INTERFACE ==========
 
 def main():
@@ -651,6 +703,10 @@ def main():
     metadata_parser.add_argument('--source', help='Specific source', default=None)
     metadata_parser.add_argument('--limit', type=int, default=100, help='Items to process')
 
+    # API integration commands
+    letterboxd_parser = subparsers.add_parser('integrate-letterboxd', help='Integrate Letterboxd content')
+    letterboxd_parser.add_argument('--limit', type=int, default=100, help='Items to process')
+
     args = parser.parse_args()
 
     # Initialize agent
@@ -669,6 +725,8 @@ def main():
         agent.cleanup_archive(args.type)
     elif args.command == 'generate-metadata':
         agent.generate_metadata(args.source, args.limit)
+    elif args.command == 'integrate-letterboxd':
+        agent.integrate_letterboxd(args.limit)
     else:
         parser.print_help()
 

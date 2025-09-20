@@ -306,7 +306,7 @@ struct BrowseForwardPreferencesView: View {
             do {
                 print("🔄 DEBUG loadDynamicContent: About to call getAvailableCategories")
                 // Load categories
-                availableCategories = try await DynamoDBWebPageService.shared.getAvailableCategories()
+                availableCategories = try await BrowseForwardAPIService.shared.getAvailableCategories()
                 print("✅ Categories loaded: \(availableCategories.count)")
                 print("✅ Categories: \(availableCategories)")
                 
@@ -314,7 +314,7 @@ struct BrowseForwardPreferencesView: View {
                 for category in availableCategories {
                     print("🔄 DEBUG loadDynamicContent: Loading subcategories for: \(category)")
                     do {
-                        let subcategories = try await DynamoDBWebPageService.shared.getSubcategories(for: category)
+                        let subcategories = try await BrowseForwardAPIService.shared.getSubcategories(for: category)
                         print("✅ Subcategories for \(category): \(subcategories.count) - \(subcategories)")
                         if !subcategories.isEmpty {
                             categorySubcategories[category] = subcategories

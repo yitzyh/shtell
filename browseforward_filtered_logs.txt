@@ -1,0 +1,231 @@
+🚀 DumFlowApp init started
+🚀 AuthViewModel init took: 0.028854966163635254s
+🚀 WebPageViewModel init took: 0.0009340047836303711s
+🚀 DumFlowApp init completed in: 0.029844045639038086s
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=20
+✅ BrowseForward API: Retrieved 20 items
+
+🚀 INITIAL-PRELOAD: Starting initial background preload
+✅ BrowseForward API: Retrieved 20 items
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: i.imgur.com/D16thU6.jpg
+⚠️ DEBUG browseForward: No preloaded content available for: i.imgur.com/D16thU6.jpg
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: i.imgur.com/qfjFy7m.jpg
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: https://i.imgur.com/qfjFy7m.jpg
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: imgur.com/Do1fnsh
+⚠️ DEBUG browseForward: No preloaded content available for: imgur.com/Do1fnsh
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: i.imgur.com/1dyBWfi.jpg
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: https://i.imgur.com/1dyBWfi.jpg
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: i.imgur.com/ci7BHr1.jpg
+⚠️ DEBUG browseForward: No preloaded content available for: i.imgur.com/ci7BHr1.jpg
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: i.imgur.com/D16thU6.jpg
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: https://i.imgur.com/D16thU6.jpg
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: i.imgur.com/2fI3gyB.jpg
+⚠️ DEBUG browseForward: No preloaded content available for: i.imgur.com/2fI3gyB.jpg
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: i.imgur.com/1dyBWfi.jpg
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: https://i.imgur.com/1dyBWfi.jpg
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: imgur.com/gallery/VVCaC
+⚠️ DEBUG browseForward: No preloaded content available for: imgur.com/gallery/VVCaC
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: imgur.com/lulVJQF
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: https://imgur.com/lulVJQF
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: i.imgur.com/1dyBWfi.jpg
+⚠️ DEBUG browseForward: No preloaded content available for: i.imgur.com/1dyBWfi.jpg
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: i.imgur.com/ci7BHr1.jpg
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: http://i.imgur.com/ci7BHr1.jpg
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
+
+🚀 AUTO-PRELOAD: Starting background preload after page load
+
+🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===
+🚀 DEBUG browseForward: Called with category: nil, useInstantDisplay: true
+🚀 DEBUG browseForward: Stored browseForwardCategory: nil
+🚀 DEBUG browseForward: canGoForward: false
+🚀 DEBUG browseForward: browseForwardViewModel exists: true
+🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch
+🎯 DEBUG browseForward: Checking for preloaded content: imgur.com/lulVJQF
+⚠️ DEBUG browseForward: No preloaded content available for: imgur.com/lulVJQF
+🚀 DEBUG browseForward: Instant display failed, using standard flow
+🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task
+🚀 DEBUG browseForward: webPageViewModel exists: true
+🚀 DEBUG browseForward: authViewModel exists: true
+🚀 DEBUG browseForward: signedInUser exists: true
+🚀 DEBUG browseForward: userID: E806E919-F112-40AE-81B8-D8A889606320
+🚀 DEBUG browseForward: Task started, using NEW BFP preference system
+💾 DEBUG fetchByUserPreferences: Loaded preferences from UserDefaults:
+💾 DEBUG fetchByUserPreferences: selectedCategories: ["food"]
+💾 DEBUG fetchByUserPreferences: selectedSubcategories: ["food": Set([])]
+💾 DEBUG fetchByUserPreferences: isDefaultMode: false
+💾 DEBUG fetchByUserPreferences: lastUpdated: 2025-09-19 22:16:53 +0000
+📱 BrowseForward API: Fetching items from https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api/browse-content?category=food&isActiveOnly=true&limit=10
+✅ BrowseForward API: Retrieved 10 items
+🚀 DEBUG browseForward: BFP system returned 10 items
+🚀 DEBUG browseForward: Sample URLs: ["i.imgur.com/qfjFy7m.jpg", "i.imgur.com/D16thU6.jpg", "imgur.com/Do1fnsh"]
+🚀 DEBUG browseForward: Selected URL: imgur.com/gallery/VVCaC
+✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!
+🚀 DEBUG browseForward: Navigation set, urlString now: https://imgur.com/gallery/VVCaC
+🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===
