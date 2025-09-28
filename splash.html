@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shtell - Beta 0.0.1</title>
+    <style>
+        body {
+            background: #000000;
+            color: #ff6b35;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .header {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 5px;
+            text-transform: lowercase;
+        }
+        .version {
+            font-size: 18px;
+            font-weight: 300;
+            opacity: 0.8;
+            text-transform: lowercase;
+        }
+        .arrows {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .arrow-up {
+            position: absolute;
+            top: 20px;
+            right: 50%;
+            transform: translateX(50%);
+            font-size: 40px;
+        }
+        .shtell-horizontal {
+            position: absolute;
+            bottom: 32.5%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        .letter {
+            font-size: 12vh;
+            font-weight: 700;
+            line-height: 1;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">shtell</div>
+        <div class="version">beta 0.0.1</div>
+    </div>
+    <div class="arrows">
+        <div class="arrow-up">↑</div>
+    </div>
+    <div class="shtell-horizontal">
+        <div class="letter">S</div>
+        <div class="letter">H</div>
+        <div class="letter">T</div>
+        <div class="letter">E</div>
+        <div class="letter">L</div>
+        <div class="letter">L</div>
+    </div>
+</body>
+</html>
