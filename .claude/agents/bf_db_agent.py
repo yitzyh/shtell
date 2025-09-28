@@ -648,6 +648,67 @@ class BrowseForwardDB:
 
     # ========== DATABASE OPERATIONS ==========
 
+    def check_specific_urls(self, urls: List[str]) -> List[Dict[str, Any]]:
+        """Check specific URLs and return their bfCategory and status values"""
+        print(f"🔍 CHECKING SPECIFIC URLS")
+        print("=" * 60)
+
+        results = []
+
+        for url in urls:
+            print(f"\n🌐 Checking: {url}")
+
+            try:
+                response = self.dynamodb.get_item(
+                    TableName=self.table_name,
+                    Key={'url': {'S': url}}
+                )
+
+                if 'Item' in response:
+                    item = response['Item']
+
+                    result = {
+                        'url': url,
+                        'title': item.get('title', {}).get('S', 'No title'),
+                        'bfCategory': item.get('bfCategory', {}).get('S', 'Not set'),
+                        'status': item.get('status', {}).get('S', 'Not set'),
+                        'isActive': item.get('isActive', {}).get('BOOL', None),
+                        'source': item.get('source', {}).get('S', 'Unknown'),
+                        'upvotes': int(item.get('upvotes', {}).get('N', 0)),
+                        'found': True
+                    }
+
+                    print(f"   ✅ FOUND:")
+                    print(f"   Title: {result['title']}")
+                    print(f"   bfCategory: {result['bfCategory']}")
+                    print(f"   Status: {result['status']}")
+                    print(f"   isActive: {result['isActive']}")
+                    print(f"   Source: {result['source']}")
+                    print(f"   Upvotes: {result['upvotes']}")
+
+                else:
+                    result = {
+                        'url': url,
+                        'found': False,
+                        'bfCategory': 'Not found',
+                        'status': 'Not found'
+                    }
+                    print(f"   ❌ NOT FOUND in database")
+
+                results.append(result)
+
+            except Exception as e:
+                print(f"   ⚠️  Error checking {url}: {e}")
+                results.append({
+                    'url': url,
+                    'found': False,
+                    'error': str(e),
+                    'bfCategory': 'Error',
+                    'status': 'Error'
+                })
+
+        return results
+
     def mark_inactive(self, url: str) -> None:
         """Mark an item as inactive (soft delete)"""
         self.dynamodb.update_item(
@@ -693,6 +754,9 @@ def main():
 
     stats_parser = subparsers.add_parser('content-stats', help='Database content statistics')
 
+    check_parser = subparsers.add_parser('check-urls', help='Check specific URLs')
+    check_parser.add_argument('urls', nargs='+', help='URLs to check')
+
     # Cleanup commands
     reddit_parser = subparsers.add_parser('cleanup-reddit', help='Clean Reddit sources')
     reddit_parser.add_argument('--source', help='Specific Reddit source', default=None)
@@ -719,6 +783,8 @@ def main():
         agent.sample_urls(args.source, args.limit)
     elif args.command == 'content-stats':
         agent.content_stats()
+    elif args.command == 'check-urls':
+        agent.check_specific_urls(args.urls)
     elif args.command == 'cleanup-reddit':
         agent.cleanup_reddit(args.source)
     elif args.command == 'cleanup-webgames':

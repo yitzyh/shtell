@@ -246,7 +246,7 @@ class DynamoDBWebPageService: ObservableObject {
     func getSubcategories(for category: String) async throws -> [String] {
         dynamoLog("📂 DEBUG getSubcategories: === STARTING getSubcategories ===")
         dynamoLog("📂 DEBUG getSubcategories: category: \(category)")
-        
+
         let params = WebPageQueryParams(
             bfCategory: category,
             bfSubcategory: nil,
@@ -257,12 +257,74 @@ class DynamoDBWebPageService: ObservableObject {
             sortBy: .popularity,
             lastEvaluatedKey: nil
         )
-        
+
         let items = try await performQuery(with: params)
         let subcategories = Set(items.compactMap { $0.bfSubcategory }).sorted()
-        
+
         dynamoLog("📂 DEBUG getSubcategories: Found \(subcategories.count) subcategories: \(subcategories)")
         return subcategories
+    }
+
+    /// Efficiently get all categories and their subcategories in a single batch operation
+    func getAllCategoriesAndSubcategories() async throws -> (categories: [String], subcategories: [String: [String]]) {
+        dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: === STARTING BATCH OPERATION ===")
+
+        do {
+            // Single scan to get all active items with bfCategory/bfSubcategory data
+            let params = WebPageQueryParams(
+                bfCategory: nil,
+                bfSubcategory: nil,
+                isActiveOnly: true,
+                source: nil,
+                tags: nil,
+                limit: 1000, // High limit to get comprehensive category coverage
+                sortBy: .popularity,
+                lastEvaluatedKey: nil
+            )
+
+            let items = try await performQuery(with: params)
+            dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Scanned \(items.count) items")
+
+            // Extract categories and subcategories efficiently
+            var categories = Set<String>()
+            var subcategoryMap: [String: Set<String>] = [:]
+
+            for item in items {
+                // Debug each item
+                dynamoLog("📦 DEBUG item: bfCategory=\(item.bfCategory ?? "nil"), bfSubcategory=\(item.bfSubcategory ?? "nil")")
+
+                if let category = item.bfCategory {
+                    categories.insert(category)
+
+                    if let subcategory = item.bfSubcategory {
+                        subcategoryMap[category, default: Set()].insert(subcategory)
+                    }
+                }
+            }
+
+            let sortedCategories = Array(categories).sorted()
+            let sortedSubcategories = subcategoryMap.mapValues { Array($0).sorted() }
+
+            dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Found \(sortedCategories.count) categories, \(sortedSubcategories.count) with subcategories")
+            dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Categories: \(sortedCategories)")
+
+            // If no categories found, this suggests the bfCategory field might not exist or be populated
+            if sortedCategories.isEmpty {
+                dynamoLog("⚠️ WARNING: No bfCategory fields found in \(items.count) items! Check database schema.")
+
+                // Fallback: try to extract from regular category field
+                let fallbackCategories = Set(items.map { $0.category }).sorted()
+                dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Fallback using 'category' field: \(fallbackCategories)")
+
+                return (categories: fallbackCategories, subcategories: [:])
+            }
+
+            return (categories: sortedCategories, subcategories: sortedSubcategories)
+
+        } catch {
+            dynamoLog("❌ ERROR in getAllCategoriesAndSubcategories: \(error)")
+            throw error
+        }
     }
     
     /// Fetch articles by source (e.g., "internet-archive-science", "reddit-worldnews")
@@ -517,10 +579,10 @@ class DynamoDBWebPageService: ObservableObject {
             query["ExpressionAttributeValues"] = [":bfCategory": ["S": bfCategory], ":status": ["S": "active"]]
         } else if let source = params.source {
             dynamoLog("🔧 DEBUG buildQueryExpression: Using GSI query for source: \(source)")
-            query["IndexName"] = "source-index"
-            query["KeyConditionExpression"] = "#source = :source"
-            query["ExpressionAttributeNames"] = ["#source": "source"]
-            query["ExpressionAttributeValues"] = [":source": ["S": source]]
+            query["IndexName"] = "source-status-index"
+            query["KeyConditionExpression"] = "#source = :source AND #status = :status"
+            query["ExpressionAttributeNames"] = ["#source": "source", "#status": "status"]
+            query["ExpressionAttributeValues"] = [":source": ["S": source], ":status": ["S": "active"]]
         } else {
             // Fallback to scan only when no specific parameters are provided
             dynamoLog("🔧 DEBUG buildQueryExpression: Using Scan operation (no category or source specified)")

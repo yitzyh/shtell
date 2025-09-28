@@ -168,13 +168,14 @@ class BrowserHistoryService: ObservableObject {
         
         isLoading = true
         
-        // Only fetch last week's history for better performance
-        let oneWeekAgo = Calendar.current.date(byAdding: .weekOfYear, value: -1, to: Date()) ?? Date()
-        let predicate = NSPredicate(format: "userID == %@ AND dateVisited >= %@", userID, oneWeekAgo as CVarArg)
+        // Only fetch last 2 days' history for better performance
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date()
+        let predicate = NSPredicate(format: "userID == %@ AND dateVisited >= %@", userID, twoDaysAgo as CVarArg)
         let query = CKQuery(recordType: "BrowserHistory", predicate: predicate)
         query.sortDescriptors = [NSSortDescriptor(key: "dateVisited", ascending: false)]
         
-        publicDatabase.fetch(withQuery: query, inZoneWith: nil, desiredKeys: nil, resultsLimit: pageSize) { [weak self] results in
+        let desiredKeys = ["urlString", "title", "domain", "dateVisited", "visitCount", "viewDuration"]
+        publicDatabase.fetch(withQuery: query, inZoneWith: nil, desiredKeys: desiredKeys, resultsLimit: pageSize) { [weak self] results in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.isLoading = false
@@ -231,7 +232,7 @@ class BrowserHistoryService: ObservableObject {
         
         let operation = CKQueryOperation(cursor: cursor)
         operation.resultsLimit = pageSize
-        operation.desiredKeys = nil
+        operation.desiredKeys = ["urlString", "title", "domain", "dateVisited", "visitCount", "viewDuration"]
         
         operation.recordMatchedBlock = { [weak self] recordID, result in
             DispatchQueue.main.async {

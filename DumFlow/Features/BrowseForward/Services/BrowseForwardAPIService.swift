@@ -32,9 +32,9 @@ class BrowseForwardAPIService: ObservableObject {
 
     // Using Vercel API for both debug and release modes
     #if DEBUG
-    private let baseURL = "https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api"  // GSI query fixed
+    private let baseURL = "https://vercel-backend-9n83v1jk5-yitzyhs-projects.vercel.app/api"  // Updated deployment with GSI pagination fix
     #else
-    private let baseURL = "https://vercel-backend-k6iizy48w-yitzyhs-projects.vercel.app/api"  // GSI query fixed
+    private let baseURL = "https://vercel-backend-9n83v1jk5-yitzyhs-projects.vercel.app/api"  // Updated deployment with GSI pagination fix
     #endif
 
     @Published var isLoading = false
@@ -69,6 +69,9 @@ class BrowseForwardAPIService: ObservableObject {
         }
         queryItems.append(URLQueryItem(name: "isActiveOnly", value: String(isActiveOnly)))
         queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
+
+        // Add random seed to get different results each time
+        queryItems.append(URLQueryItem(name: "random", value: String(Int.random(in: 1...10000))))
 
         components.queryItems = queryItems
 
@@ -174,6 +177,36 @@ class BrowseForwardAPIService: ObservableObject {
             lastError = error
             throw error
         }
+    }
+
+    /// Get all categories and subcategories using Vercel API
+    /// Secure alternative to direct DynamoDB access
+    func getAllCategoriesAndSubcategories() async throws -> (categories: [String], subcategories: [String: [String]]) {
+        print("📦 BrowseForward API: Using Vercel API for categories/subcategories")
+
+        isLoading = true
+        defer { isLoading = false }
+
+        // Get categories using secure Vercel API
+        let categories = try await getAvailableCategories()
+
+        // Get subcategories for each category
+        var subcategoriesMap: [String: [String]] = [:]
+
+        for category in categories {
+            do {
+                let subcategories = try await getSubcategories(for: category)
+                if !subcategories.isEmpty {
+                    subcategoriesMap[category] = subcategories
+                }
+            } catch {
+                print("⚠️ Failed to get subcategories for \(category): \(error)")
+                // Continue with other categories
+            }
+        }
+
+        print("✅ BrowseForward API: Loaded \(categories.count) categories, \(subcategoriesMap.count) with subcategories via Vercel API")
+        return (categories: categories, subcategories: subcategoriesMap)
     }
 
     /// Fetch by source

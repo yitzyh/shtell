@@ -161,11 +161,11 @@ struct WebPageRowView: View {
                         
                         //Thumbnail Saved
                         ZStack {
-                            Image(systemName: "star.fill")
+                            Image(systemName: "bookmark.fill")
                                 .scaleEffect(x: 1.35, y: 0.95)
                                 .foregroundColor(colorScheme == .dark ? Color(white: 0.07) : .white)
-                            
-                            Image(systemName: "star.fill")
+
+                            Image(systemName: "bookmark.fill")
                                 .scaleEffect(x: 1.3, y: 0.9)
                                 .foregroundColor(.orange)
                         }
@@ -258,7 +258,7 @@ struct WebPageRowView: View {
                         
                         // Save Button
                         HStack {
-                            Image(systemName: isSaved ? "star.fill" : "star")
+                            Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                                 .foregroundColor(.primary)
                                 .opacity(isSaving ? 0.6 : 1.0)
                                 .font(.system(.body, weight: .light))
@@ -320,7 +320,7 @@ struct WebPageRowView: View {
                     webPageViewModel.toggleSave(on: webPage)
                 }
             } label: {
-                Image(systemName: isSaved ? "star.fill" : "star")
+                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                     .environment(\.symbolVariants, .none)
             }
             .tint(isSaved ? .orange : .gray)

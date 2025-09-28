@@ -62,7 +62,6 @@ class WebBrowser: ObservableObject{
     @Published var canGoForward: Bool = false
     @Published var loadingProgress: Double = 0.0
     @Published var isForwardNavigation = false
-    @Published var isUsingInstantContent = false // Flag to indicate when using preloaded content
     @Published var isReaderMode: Bool = false
     @Published var browseForwardCategory: String? = nil
     @Published var pageBackgroundIsDark: Bool = false
@@ -74,18 +73,9 @@ class WebBrowser: ObservableObject{
 
     weak var wkWebView: WKWebView?
     weak var webPageViewModel: WebPageViewModel?
-    weak var browseForwardViewModel: BrowseForwardViewModel? {
-        didSet {
-            // Connect preload manager when BrowseForward ViewModel is set
-            Task { @MainActor in
-                preloadManager?.browseForwardViewModel = browseForwardViewModel
-            }
-        }
-    }
+    weak var browseForwardViewModel: BrowseForwardViewModel?
     var readerModeSettings = ReaderModeSettings()
 
-    // MARK: - BrowseForward Preloading
-    @Published var preloadManager: BrowseForwardPreloadManager?
 
     // Process pool no longer needed (deprecated iOS 15+)
 
@@ -375,129 +365,89 @@ class WebBrowser: ObservableObject{
     
     
     @MainActor
-    func browseForward(category: String? = nil, useInstantDisplay: Bool = false) {
+    func browseForward(category: String? = nil) {
         #if DEBUG
-        print("🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===")
-        print("🚀 DEBUG browseForward: Called with category: \(category ?? "nil"), useInstantDisplay: \(useInstantDisplay)")
-        print("🚀 DEBUG browseForward: Stored browseForwardCategory: \(browseForwardCategory ?? "nil")")
-        print("🚀 DEBUG browseForward: canGoForward: \(canGoForward)")
-        print("🚀 DEBUG browseForward: browseForwardViewModel exists: \(browseForwardViewModel != nil)")
+        let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+        if verboseLogging {
+            print("🚀 DEBUG browseForward: === STARTING BROWSE FORWARD ===")
+            print("🚀 DEBUG browseForward: Called with category: \(category ?? "nil")")
+            print("🚀 DEBUG browseForward: canGoForward: \(canGoForward)")
+        }
         #endif
 
         // If a category is provided, remember it for future browseForward calls
         if let category = category {
             browseForwardCategory = category
-            print("🚀 DEBUG browseForward: Stored new category: \(category)")
         }
 
         if canGoForward {
-            print("🚀 DEBUG browseForward: Using regular goForward() - ENDING")
             goForward()
         } else {
-            print("🚀 DEBUG browseForward: No forward history, entering preload/AWS content fetch")
             guard let browseForwardViewModel = browseForwardViewModel else {
-                print("🚀 DEBUG browseForward: CRITICAL - No browseForwardViewModel! Using Wikipedia fallback")
+                #if DEBUG
+                print("⚠️ BrowseForward: No ViewModel available, using Wikipedia fallback")
+                #endif
                 urlString = "https://en.wikipedia.org/wiki/Special:Random"
                 isUserInitiatedNavigation = true
                 return
             }
 
-            // For useInstantDisplay: Try preloaded content, fall back to standard if none available
-            // For standard flow: Always use performStandardBrowseForward
             Task { @MainActor in
-                if useInstantDisplay {
-                    let instantSuccess = await tryInstantPreloadDisplay()
-                    if !instantSuccess {
-                        print("🚀 DEBUG browseForward: Instant display failed, using standard flow")
-                        await performStandardBrowseForward()
-                    }
-                } else {
-                    await performStandardBrowseForward()
-                }
+                await performStandardBrowseForward()
             }
         }
     }
 
-    @MainActor
-    private func tryInstantPreloadDisplay() async -> Bool {
-        guard let browseForwardViewModel = browseForwardViewModel else { return false }
-
-        do {
-            // Get next URL that should be preloaded
-            if let nextURL = try await browseForwardViewModel.getRandomURL() {
-                print("🎯 DEBUG browseForward: Checking for preloaded content: \(cleanURLForLogging(nextURL))")
-
-                if preloadManager?.hasPreloadedContent(for: nextURL) ?? false {
-                    print("✅ DEBUG browseForward: INSTANT DISPLAY - Using preloaded content!")
-
-                    // Set flags for instant navigation
-                    isForwardNavigation = true
-                    isUsingInstantContent = true // Prevent loading bar from showing
-                    urlString = nextURL
-                    isUserInitiatedNavigation = true
-
-                    print("🚀 DEBUG browseForward: === INSTANT BROWSE FORWARD COMPLETE ===")
-                    return true
-                } else {
-                    print("⚠️ DEBUG browseForward: No preloaded content available for: \(cleanURLForLogging(nextURL))")
-                }
-            }
-        } catch {
-            print("🚨 DEBUG browseForward: Error checking preloaded content: \(error)")
-        }
-
-        return false
-    }
 
     @MainActor
     private func performStandardBrowseForward() async {
         guard let browseForwardViewModel = browseForwardViewModel else { return }
 
-        print("🚀 DEBUG browseForward: browseForwardViewModel found, starting standard Task")
-        print("🚀 DEBUG browseForward: webPageViewModel exists: \(webPageViewModel != nil)")
-        print("🚀 DEBUG browseForward: authViewModel exists: \(webPageViewModel?.authViewModel != nil)")
-        print("🚀 DEBUG browseForward: signedInUser exists: \(webPageViewModel?.authViewModel.signedInUser != nil)")
-        print("🚀 DEBUG browseForward: userID: \(webPageViewModel?.authViewModel.signedInUser?.userID ?? "nil")")
+        #if DEBUG
+        let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+        if verboseLogging {
+            print("🚀 DEBUG browseForward: Starting standard BrowseForward")
+        }
+        #endif
 
-        print("🚀 DEBUG browseForward: Task started, using NEW BFP preference system")
         do {
             // Use the new BFP preference system instead of old category system
-            let bfQueue = try await browseForwardViewModel.fetchByUserPreferences(limit: 10)
-            print("🚀 DEBUG browseForward: BFP system returned \(bfQueue.count) items")
+            let bfQueue = try await browseForwardViewModel.fetchByUserPreferences(limit: 500)
 
-            if !bfQueue.isEmpty {
-                let firstFewURLs = bfQueue.prefix(3).map { self.cleanURLForLogging($0.url) }
-                print("🚀 DEBUG browseForward: Sample URLs: \(firstFewURLs)")
+            #if DEBUG
+            if verboseLogging {
+                print("🚀 DEBUG browseForward: BFP system returned \(bfQueue.count) items")
+                if !bfQueue.isEmpty {
+                    let firstFewURLs = bfQueue.prefix(3).map { self.cleanURLForLogging($0.url) }
+                    print("🚀 DEBUG browseForward: Sample URLs: \(firstFewURLs)")
+                }
             }
+            #endif
 
             let nextURL = bfQueue.randomElement()?.url ?? "https://en.wikipedia.org/wiki/Special:Random"
-            print("🚀 DEBUG browseForward: Selected URL: \(self.cleanURLForLogging(nextURL))")
 
-            if nextURL.contains("wikipedia.org") {
-                print("🚨 DEBUG browseForward: WARNING - Got Wikipedia fallback URL instead of AWS content!")
-            } else {
-                print("✅ DEBUG browseForward: SUCCESS - Got non-Wikipedia URL from AWS!")
+            #if DEBUG
+            if verboseLogging {
+                print("🚀 DEBUG browseForward: Selected URL: \(self.cleanURLForLogging(nextURL))")
             }
+            if nextURL.contains("wikipedia.org") {
+                print("⚠️ BrowseForward: Using Wikipedia fallback")
+            }
+            #endif
 
             isForwardNavigation = true
             urlString = nextURL
             isUserInitiatedNavigation = true
 
-            print("🚀 DEBUG browseForward: Navigation set, urlString now: \(urlString)")
-            print("🚀 DEBUG browseForward: === BROWSE FORWARD COMPLETE ===")
-
         } catch {
-            print("🚨 DEBUG browseForward: EXCEPTION caught: \(error)")
-            print("🚨 DEBUG browseForward: Error type: \(type(of: error))")
-            print("🚨 DEBUG browseForward: Error description: \(error.localizedDescription)")
+            #if DEBUG
+            print("🚨 BrowseForward: Error fetching content: \(error.localizedDescription)")
+            #endif
 
             // Fallback to Wikipedia Random
             isForwardNavigation = true
             urlString = "https://en.wikipedia.org/wiki/Special:Random"
             isUserInitiatedNavigation = true
-
-            print("🚨 DEBUG browseForward: Set Wikipedia fallback due to exception")
-            print("🚀 DEBUG browseForward: === BROWSE FORWARD FAILED ===")
         }
     }
     
@@ -579,12 +529,7 @@ class WebBrowser: ObservableObject{
     
     init(urlString: String = "https://www.google.com") {
         self.urlString = urlString
-        self.preloadManager = nil
 
-        // Initialize preload manager on main actor
-        Task { @MainActor in
-            self.preloadManager = BrowseForwardPreloadManager()
-        }
     }
 
     // MARK: - Helper Functions
@@ -700,12 +645,6 @@ struct WebView: UIViewRepresentable {
         webBrowser.browseForwardViewModel = browseForwardViewModel
         webBrowser.webPageViewModel = webPageViewModel
 
-        // Start initial preloading after connections are established
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms delay for faster initial preload
-            print("🚀 INITIAL-PRELOAD: Starting initial background preload")
-            webBrowser.preloadManager?.startPreloading()
-        }
 
         
         // Load splash screen HTML using new system with data URLs for history
@@ -767,183 +706,22 @@ struct WebView: UIViewRepresentable {
         }
         
         @objc func handleRefresh(_ refreshControl: UIRefreshControl) {
-            // Use BrowseForward with instant display for social media-style content discovery
+            // Use BrowseForward for social media-style content discovery
             DispatchQueue.main.async {
-                print("🎯 PULL-REFRESH: Starting instant BrowseForward")
-
-                // Try instant display with preloaded content first
-                Task { @MainActor in
-                    let hadInstantContent = await self.tryInstantDisplay()
-
-                    // Only end refresh animation if we had instant content
-                    if hadInstantContent {
-                        refreshControl.endRefreshing()
-                    } else {
-                        // For non-instant content, let the normal loading process handle refresh control
-                        await self.handleInstantBrowseForward()
-                        refreshControl.endRefreshing()
-                    }
+                #if DEBUG
+                let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+                if verboseLogging {
+                    print("🎯 PULL-REFRESH: Starting BrowseForward")
                 }
+                #endif
+
+                self.webBrowser.browseForward()
+                refreshControl.endRefreshing()
             }
         }
 
-        @MainActor
-        private func tryInstantDisplay() async -> Bool {
-            guard let browseForwardViewModel = webBrowser.browseForwardViewModel,
-                  let webView = self.webView else {
-                return false
-            }
 
-            do {
-                if let nextURL = try await browseForwardViewModel.getRandomURL() {
-                    print("🎯 INSTANT: Checking preload for: \(cleanURLForLogging(nextURL))")
 
-                    if webBrowser.preloadManager?.hasPreloadedContent(for: nextURL) ?? false {
-                        print("⚡ INSTANT: Using preloaded content!")
-
-                        // Set flag to indicate instant content usage
-                        webBrowser.isUsingInstantContent = true
-
-                        // Get the preloaded content
-                        if let preloadedContent = webBrowser.preloadManager?.getInstantPreloadedContent(for: nextURL) {
-                            // Animate slide transition with preloaded WebView
-                            await performInstantSlideTransition(
-                                to: preloadedContent.webView,
-                                url: preloadedContent.url,
-                                from: webView
-                            )
-                            return true
-                        }
-                    }
-                }
-            } catch {
-                print("🎯 INSTANT: Error checking preloaded content: \(error)")
-            }
-
-            return false
-        }
-
-        @MainActor
-        private func handleInstantBrowseForward() async {
-            print("🎯 INSTANT: Checking for preloaded content")
-
-            guard let browseForwardViewModel = webBrowser.browseForwardViewModel,
-                  let webView = self.webView else {
-                print("🎯 INSTANT: Missing ViewModel or WebView, falling back")
-                webBrowser.browseForward(useInstantDisplay: true)
-                return
-            }
-
-            // Get next URL that should be preloaded
-            do {
-                if let nextURL = try await browseForwardViewModel.getRandomURL() {
-                    print("🎯 INSTANT: Checking preload for: \(cleanURLForLogging(nextURL))")
-
-                    if webBrowser.preloadManager?.hasPreloadedContent(for: nextURL) ?? false {
-                        print("⚡ INSTANT: Using preloaded content!")
-
-                        // Get the preloaded content
-                        if let preloadedContent = webBrowser.preloadManager?.getInstantPreloadedContent(for: nextURL) {
-                            // Animate slide transition with preloaded WebView
-                            await performInstantSlideTransition(
-                                to: preloadedContent.webView,
-                                url: preloadedContent.url,
-                                from: webView
-                            )
-                        }
-
-                        return
-                    } else {
-                        print("🎯 INSTANT: No preloaded content available for: \(cleanURLForLogging(nextURL))")
-                    }
-                }
-            } catch {
-                print("🎯 INSTANT: Error checking preloaded content: \(error)")
-            }
-
-            print("🎯 INSTANT: Falling back to standard BrowseForward")
-
-            // Start preloading next content for future instant use
-            webBrowser.preloadManager?.startPreloading()
-
-            // Use standard flow for this navigation
-            webBrowser.browseForward(useInstantDisplay: false)
-        }
-
-        @MainActor
-        private func performInstantSlideTransition(to newWebView: WKWebView, url: String, from currentWebView: WKWebView) async {
-            print("🎬 REVEAL: Starting instant reveal transition")
-
-            guard let parentView = currentWebView.superview else {
-                print("🎬 REVEAL: No parent view, falling back")
-                return
-            }
-
-            // Configure new WebView for display
-            newWebView.frame = currentWebView.frame
-            newWebView.scrollView.contentInsetAdjustmentBehavior = .never
-
-            // Copy scroll view insets from current WebView
-            newWebView.scrollView.contentInset = currentWebView.scrollView.contentInset
-            newWebView.scrollView.scrollIndicatorInsets = currentWebView.scrollView.scrollIndicatorInsets
-
-            // Setup gesture recognizers and delegates like the original WebView
-            newWebView.allowsBackForwardNavigationGestures = true
-            newWebView.navigationDelegate = self
-            newWebView.uiDelegate = self
-            newWebView.scrollView.delegate = self
-
-            // Position new WebView BEHIND current WebView for reveal effect (if not already positioned)
-            newWebView.transform = .identity // Background stays in place
-
-            if newWebView.superview == nil {
-                // WebView not yet positioned - add it behind current
-                parentView.insertSubview(newWebView, belowSubview: currentWebView)
-                print("🎬 REVEAL: Positioned new WebView behind current")
-            } else {
-                // WebView already positioned by preload manager - just ensure proper frame
-                newWebView.frame = currentWebView.frame
-                print("🎬 REVEAL: Using already-positioned background WebView")
-            }
-
-            // Update WebBrowser reference immediately
-            webBrowser.wkWebView = newWebView
-            webBrowser.urlString = url
-            webBrowser.isUserInitiatedNavigation = false // This was already loaded
-
-            // Animate reveal effect - current page slides down revealing new page behind
-            await withCheckedContinuation { continuation in
-                UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.4) {
-                    // Current page slides down and off screen
-                    currentWebView.transform = CGAffineTransform(translationX: 0, y: parentView.bounds.height)
-                    currentWebView.alpha = 0.9
-
-                    // New page stays in place (already revealed behind)
-                    newWebView.transform = .identity
-                } completion: { _ in
-                    // Clean up old WebView
-                    currentWebView.removeFromSuperview()
-                    currentWebView.transform = .identity
-                    currentWebView.alpha = 1.0
-
-                    // Update WebView reference and setup observers
-                    self.webView = newWebView
-                    self.setupWebView(newWebView)
-
-                    // Add gesture recognizers and delegates to new WebView
-                    let forwardSwipeGesture = UISwipeGestureRecognizer(target: self, action: #selector(self.handleForwardSwipe(_:)))
-                    forwardSwipeGesture.direction = .left
-                    forwardSwipeGesture.numberOfTouchesRequired = 1
-                    newWebView.addGestureRecognizer(forwardSwipeGesture)
-
-                    print("🎬 REVEAL: Transition completed")
-                    continuation.resume()
-                }
-            }
-
-            // Start preloading next content immediately
-            webBrowser.preloadManager?.startPreloading()
-        }
         
         func setupSelectionMonitoring(for webView: WKWebView) {
             // Inject JavaScript to monitor text selection
@@ -1072,8 +850,6 @@ struct WebView: UIViewRepresentable {
             self.webView = webView
             webBrowser.wkWebView = webView
 
-            // Set current WebView reference for preload manager positioning
-            webBrowser.preloadManager?.setCurrentWebView(webView)
 
             urlObservation = webView.observe(\.url, options: [.new]) { [weak self] webView, change in
                 guard let self = self else { return }
@@ -1097,6 +873,7 @@ struct WebView: UIViewRepresentable {
             
             progressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] wv, _ in
                 DispatchQueue.main.async {
+                    print("🔄 Progress: \(wv.estimatedProgress)")
                     self?.webBrowser.loadingProgress = wv.estimatedProgress
                 }
             }
@@ -1160,6 +937,11 @@ struct WebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             print("WebView: Navigation failed - \(error.localizedDescription)")
         }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            print("🚨 WEBKIT CRASH: WebContent process terminated - reloading page")
+            webView.reload()
+        }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             DispatchQueue.main.async {
@@ -1200,18 +982,10 @@ struct WebView: UIViewRepresentable {
                     await self.webBrowser.detectPageBackgroundColor()
                 }
 
-                // Start preloading next BrowseForward content after page loads
-                Task {
-                    // Minimal delay to let page settle before starting preload
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 100ms for even faster preload availability
-                    print("🚀 AUTO-PRELOAD: Starting background preload after page load")
-                    self.webBrowser.preloadManager?.startPreloading()
-                }
 
-                // Reset forward navigation and instant content flags after loading completes
+                // Reset forward navigation flag after loading completes
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.webBrowser.isForwardNavigation = false
-                    self.webBrowser.isUsingInstantContent = false
                 }
 
                 // Highlight quoted text after page loads
@@ -1223,16 +997,16 @@ struct WebView: UIViewRepresentable {
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             let currentOffset = scrollView.contentOffset.y
             let scrollDelta = currentOffset - lastContentOffset
-            
-            // Hybrid approach: content-aware with predictable minimization
+
+            // Start minimizing after scrolling 1 screen height OR 20% of content, whichever is smaller
             let webpageLength = max(0, scrollView.contentSize.height - scrollView.frame.height)
-            let _ = webpageLength * 0.5  // 50% of webpage content (not currently used)
-            let _ : CGFloat = 100.0       // 100px to fully minimize (not currently used)
-            let _ : CGFloat = 50.0      // 50px to minimize again after expansion (not currently used)
-            
+            let oneScreenHeight = scrollView.frame.height
+            let twentyPercentOfContent = webpageLength * 0.2
+            let minimizeThreshold = min(oneScreenHeight, twentyPercentOfContent)
+
             if scrollDelta > 0 { // Scrolling down
-                if currentOffset > webpageLength {
-                    // Past 100% of content - minimize based on user's scroll delta
+                if currentOffset > minimizeThreshold {
+                    // Past threshold - minimize based on user's scroll delta
                     let scrollSensitivity: CGFloat = 120.0 // Higher = slower minimization
                     let newProgress = min(1.0, scrollProgress + (scrollDelta / scrollSensitivity))
                     withAnimation(.easeOut(duration: 0.2)) {
@@ -1690,8 +1464,10 @@ class ArrowRefreshControl: UIRefreshControl {
     }
     
     private func updateArrow() {
-        guard let scrollView = superview as? UIScrollView else { return }
-
+        guard let scrollView = superview as? UIScrollView else {
+            print("🎯 PULL ERROR: No scrollView found")
+            return
+        }
         // Calculate pull distance and progress
         let pullDistance = max(0, -scrollView.contentOffset.y - scrollView.adjustedContentInset.top)
         let progress = min(1.0, pullDistance / 80.0) // 80pts for full size (increased from 60)
@@ -1703,25 +1479,6 @@ class ArrowRefreshControl: UIRefreshControl {
         // Enhanced alpha progression for better visibility
         arrowView.alpha = min(1.0, progress * 1.2)
 
-        // REVEAL EFFECT: Apply real-time webpage transform during pull
-        if let webBrowser = webBrowser,
-           let currentWebView = scrollView as? WKWebView,
-           progress > 0.1 { // Start reveal effect after minimal pull
-
-            // Gradually slide current webpage down as user pulls
-            let revealProgress = min(progress * 0.3, 0.3) // Cap at 30% of screen height
-            let slideDistance = revealProgress * scrollView.bounds.height
-
-            // Apply transform to show reveal preview
-            UIView.animate(withDuration: 0.1, delay: 0, options: [.allowUserInteraction, .beginFromCurrentState]) {
-                currentWebView.transform = CGAffineTransform(translationX: 0, y: slideDistance)
-            }
-        } else if let currentWebView = scrollView as? WKWebView {
-            // Reset transform when not pulling
-            UIView.animate(withDuration: 0.2, delay: 0, options: [.allowUserInteraction, .beginFromCurrentState]) {
-                currentWebView.transform = .identity
-            }
-        }
 
         // Update color and add visual enhancements based on pull progress
         if let webBrowser = webBrowser {
@@ -1751,13 +1508,6 @@ class ArrowRefreshControl: UIRefreshControl {
         // Remove any pulse animation
         arrowView.layer.removeAnimation(forKey: "pulse")
 
-        // Reset WebView transform if needed (in case reveal animation was interrupted)
-        if let scrollView = superview as? UIScrollView,
-           let currentWebView = scrollView as? WKWebView {
-            UIView.animate(withDuration: 0.2) {
-                currentWebView.transform = .identity
-            }
-        }
 
         // Animate arrow disappearing with spring effect for satisfying feedback
         UIView.animate(withDuration: 0.2, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5, animations: {

@@ -32,8 +32,6 @@ struct BrowserHistory: Identifiable {
     var notes: String? // User notes about the page
     
     init(record: CKRecord) throws {
-        print("🔍 Parsing BrowserHistory record: \(record.recordID.recordName)")
-        
         // Required fields
         guard let urlString = record["urlString"] as? String else {
             throw NSError(domain: "BrowserHistory", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing urlString"])
@@ -69,8 +67,6 @@ struct BrowserHistory: Identifiable {
         self.tags = record["tags"] as? [String]
         self.rating = record["rating"] as? Int
         self.notes = record["notes"] as? String
-        
-        print("✅ Successfully parsed BrowserHistory for: \(urlString)")
     }
     
     // Create CloudKit record from BrowserHistory

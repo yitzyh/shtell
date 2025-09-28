@@ -225,34 +225,49 @@ class BrowseForwardViewModel: ObservableObject {
             return result
         }
 
-        // Handle category-based filtering
+        // Handle category-based filtering with intelligent batching
         if !preferences.selectedCategories.isEmpty {
             browseForwardLog("🔍 DEBUG fetchByUserPreferences: Using selected categories: \(preferences.selectedCategories)")
 
-            // Pick one random category from user's selections
-            guard let randomCategory = preferences.selectedCategories.randomElement() else {
-                browseForwardLog("⚠️ No categories in selectedCategories despite !isEmpty check")
-                throw BrowseForwardError.noCategoriesAvailable
+            // Batch fetch from multiple categories for better content diversity
+            var allItems: [BrowseForwardItem] = []
+            let maxCategories = min(3, preferences.selectedCategories.count) // Limit to prevent too many queries
+            let itemsPerCategory = limit / maxCategories
+
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Batching \(maxCategories) categories, \(itemsPerCategory) items each")
+
+            let selectedCategories = Array(preferences.selectedCategories.shuffled().prefix(maxCategories))
+
+            for category in selectedCategories {
+                browseForwardLog("🔍 DEBUG fetchByUserPreferences: Fetching from category: '\(category)'")
+
+                // Check if user has subcategory selections for this category
+                var selectedSubcategory: String? = nil
+                if let subcategories = preferences.selectedSubcategories[category],
+                   !subcategories.isEmpty {
+                    selectedSubcategory = subcategories.randomElement()
+                    browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected subcategory: '\(selectedSubcategory ?? "nil")'")
+                }
+
+                do {
+                    let categoryItems = try await apiService.fetchBFQueueItems(
+                        category: category,
+                        subcategory: selectedSubcategory,
+                        isActiveOnly: true,
+                        limit: itemsPerCategory
+                    )
+                    allItems.append(contentsOf: categoryItems)
+                    browseForwardLog("🔍 DEBUG fetchByUserPreferences: Category '\(category)' added \(categoryItems.count) items")
+                } catch {
+                    browseForwardLog("⚠️ Failed to fetch from category '\(category)': \(error)")
+                    // Continue with other categories
+                }
             }
-            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected random category: '\(randomCategory)'")
 
-            // Check if user has subcategory selections for this category
-            var selectedSubcategory: String? = nil
-            if let subcategories = preferences.selectedSubcategories[randomCategory],
-               !subcategories.isEmpty {
-                selectedSubcategory = subcategories.randomElement()
-                browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected random subcategory: '\(selectedSubcategory ?? "nil")'")
-            }
-
-            let result = try await apiService.fetchBFQueueItems(
-                category: randomCategory,
-                subcategory: selectedSubcategory,
-                isActiveOnly: true,
-                limit: limit
-            )
-
-            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Category '\(randomCategory)' returned \(result.count) items")
-            return result
+            // Shuffle for content diversity across categories
+            let shuffledItems = allItems.shuffled()
+            browseForwardLog("🔍 DEBUG fetchByUserPreferences: Batched \(shuffledItems.count) items from \(maxCategories) categories")
+            return shuffledItems
         }
 
         // Fallback: return all active content

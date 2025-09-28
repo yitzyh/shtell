@@ -34,11 +34,6 @@ struct BrowseForwardPreferencesView: View {
                         ProgressView("Loading categories...")
                             .frame(height: 100)
                     } else {
-                        // Default mode info
-                        if preferences.isDefaultMode {
-                            defaultModeSection
-                        }
-                        
                         // Categories section
                         categoriesSection
                         
@@ -56,11 +51,10 @@ struct BrowseForwardPreferencesView: View {
                 .padding(.top, 20)
             }
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Clear All") {
-                        clearAllSelections()
-                    }
-                    .foregroundColor(.red)
+                ToolbarItem(placement: .principal) {
+                    Text("Browse Categories")
+                        .font(.headline)
+                        .fontWeight(.semibold)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
@@ -70,8 +64,7 @@ struct BrowseForwardPreferencesView: View {
                     .fontWeight(.semibold)
                 }
             }
-            .navigationTitle("Browse Categories")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             loadPreferences()
@@ -80,96 +73,38 @@ struct BrowseForwardPreferencesView: View {
     }
     
     // MARK: - View Sections
-    
-    private var defaultModeSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "infinity.circle.fill")
-                    .foregroundColor(.green)
-                Text("All Active Content")
-                    .font(.headline)
-                Spacer()
-            }
-            
-            Text("Currently showing all active content from the database. Select categories below to filter your browsing experience.")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.green.opacity(0.05))
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        )
-    }
-    
+
     private var categoriesSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
-            HStack {
-                Image(systemName: "tag.fill")
-                    .foregroundColor(.blue)
-                Text("Categories")
-                    .font(.headline)
-                Spacer()
-                Text("\(availableCategories.count) available")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
+        VStack(alignment: .leading, spacing: 16) {
             if !availableCategories.isEmpty {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Categories with subcategories
-                    let categoriesWithSubs = availableCategories.filter { categorySubcategories[$0]?.isEmpty == false }.sorted()
-                    let categoriesWithoutSubs = availableCategories.filter { categorySubcategories[$0]?.isEmpty != false }.sorted()
-                    
-                    if !categoriesWithSubs.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "folder.fill")
-                                    .foregroundColor(.orange)
-                                    .font(.caption)
-                                Text("With Subcategories")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
-                                ForEach(categoriesWithSubs, id: \.self) { category in
-                                    HierarchicalCategoryButton(
-                                        title: category,
-                                        subcategoryCount: categorySubcategories[category]?.count ?? 0,
-                                        isSelected: preferences.selectedCategories.contains(category),
-                                        hasSubcategories: true
-                                    ) {
-                                        toggleCategory(category)
-                                    }
-                                }
+                // Categories with subcategories
+                let categoriesWithSubs = availableCategories.filter { categorySubcategories[$0]?.isEmpty == false }.sorted()
+                let categoriesWithoutSubs = availableCategories.filter { categorySubcategories[$0]?.isEmpty != false }.sorted()
+
+                if !categoriesWithSubs.isEmpty {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
+                        ForEach(categoriesWithSubs, id: \.self) { category in
+                            HierarchicalCategoryButton(
+                                title: category,
+                                subcategoryCount: categorySubcategories[category]?.count ?? 0,
+                                isSelected: preferences.selectedCategories.contains(category),
+                                hasSubcategories: true
+                            ) {
+                                toggleCategory(category)
                             }
                         }
                     }
-                    
-                    if !categoriesWithoutSubs.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Image(systemName: "doc.fill")
-                                    .foregroundColor(.green)
-                                    .font(.caption)
-                                Text("Direct Categories")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                                ForEach(categoriesWithoutSubs, id: \.self) { category in
-                                    CategoryButton(
-                                        title: category,
-                                        isSelected: preferences.selectedCategories.contains(category),
-                                        hasSubcategories: false
-                                    ) {
-                                        toggleCategory(category)
-                                    }
-                                }
+                }
+
+                if !categoriesWithoutSubs.isEmpty {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                        ForEach(categoriesWithoutSubs, id: \.self) { category in
+                            CategoryButton(
+                                title: category,
+                                isSelected: preferences.selectedCategories.contains(category),
+                                hasSubcategories: false
+                            ) {
+                                toggleCategory(category)
                             }
                         }
                     }
@@ -181,31 +116,23 @@ struct BrowseForwardPreferencesView: View {
                     .italic()
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.blue.opacity(0.05))
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        )
     }
     
     private func subcategoriesSection(for category: String, subcategories: [String]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Image(systemName: "folder.fill")
-                    .foregroundColor(.orange)
                 Text("\(category) Subcategories")
                     .font(.headline)
-                
+
                 Spacer()
-                
+
                 Button("Close") {
                     selectedCategoryForSubcategories = nil
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
-            
+
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(subcategories.sorted(), id: \.self) { subcategory in
                     CategoryButton(
@@ -218,12 +145,6 @@ struct BrowseForwardPreferencesView: View {
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.orange.opacity(0.05))
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        )
         .transition(.opacity.combined(with: .move(edge: .top)))
         .animation(.easeInOut(duration: 0.3), value: selectedCategoryForSubcategories)
     }
@@ -299,43 +220,74 @@ struct BrowseForwardPreferencesView: View {
     // MARK: - Dynamic Content Loading
     
     private func loadDynamicContent() {
-        print("🔄 DEBUG loadDynamicContent: Starting to load categories")
+        print("🔄 DEBUG loadDynamicContent: Starting to load categories with batch operation")
         Task { @MainActor in
             isLoadingContent = true
-            
+
             do {
-                print("🔄 DEBUG loadDynamicContent: About to call getAvailableCategories")
-                // Load categories
-                availableCategories = try await BrowseForwardAPIService.shared.getAvailableCategories()
-                print("✅ Categories loaded: \(availableCategories.count)")
-                print("✅ Categories: \(availableCategories)")
-                
-                // Load subcategories for each category
-                for category in availableCategories {
-                    print("🔄 DEBUG loadDynamicContent: Loading subcategories for: \(category)")
-                    do {
-                        let subcategories = try await BrowseForwardAPIService.shared.getSubcategories(for: category)
-                        print("✅ Subcategories for \(category): \(subcategories.count) - \(subcategories)")
-                        if !subcategories.isEmpty {
-                            categorySubcategories[category] = subcategories
-                        }
-                    } catch {
-                        print("⚠️ Failed to load subcategories for \(category): \(error)")
-                    }
+                print("🔄 DEBUG loadDynamicContent: About to call getAllCategoriesAndSubcategories")
+
+                // Load all categories and subcategories in one efficient batch operation
+                let (categories, subcategories) = try await BrowseForwardAPIService.shared.getAllCategoriesAndSubcategories()
+
+                availableCategories = categories
+                categorySubcategories = subcategories
+
+                print("✅ Batch operation complete: \(categories.count) categories, \(subcategories.count) with subcategories")
+                print("✅ Categories: \(categories)")
+                print("✅ Subcategories map: \(subcategories)")
+
+                // If batch operation returned empty results, try fallback
+                if categories.isEmpty {
+                    print("⚠️ Batch operation returned empty categories, trying fallback method")
+                    try await loadDynamicContentFallback()
                 }
-                
-                print("✅ Dynamic content loaded: \(availableCategories.count) categories, \(categorySubcategories.count) with subcategories")
-                
+
             } catch {
-                print("❌ Failed to load dynamic content: \(error)")
+                print("❌ Failed to load dynamic content with batch: \(error)")
                 print("❌ Error type: \(type(of: error))")
                 print("❌ Error description: \(error.localizedDescription)")
-                // Keep empty arrays as fallback
+
+                // Fallback to old sequential method
+                print("🔄 Falling back to sequential loading method")
+                do {
+                    try await loadDynamicContentFallback()
+                } catch {
+                    print("❌ Fallback method also failed: \(error)")
+                    // Keep empty arrays as final fallback
+                    availableCategories = []
+                    categorySubcategories = [:]
+                }
             }
-            
+
             print("🔄 DEBUG loadDynamicContent: Setting isLoadingContent = false")
             isLoadingContent = false
         }
+    }
+
+    private func loadDynamicContentFallback() async throws {
+        print("🔄 DEBUG loadDynamicContentFallback: Using sequential method as fallback")
+
+        // Load categories
+        availableCategories = try await BrowseForwardAPIService.shared.getAvailableCategories()
+        print("✅ Fallback: Categories loaded: \(availableCategories.count)")
+        print("✅ Fallback: Categories: \(availableCategories)")
+
+        // Load subcategories for each category
+        for category in availableCategories {
+            print("🔄 DEBUG loadDynamicContentFallback: Loading subcategories for: \(category)")
+            do {
+                let subcategories = try await BrowseForwardAPIService.shared.getSubcategories(for: category)
+                print("✅ Fallback: Subcategories for \(category): \(subcategories.count) - \(subcategories)")
+                if !subcategories.isEmpty {
+                    categorySubcategories[category] = subcategories
+                }
+            } catch {
+                print("⚠️ Failed to load subcategories for \(category): \(error)")
+            }
+        }
+
+        print("✅ Fallback complete: \(availableCategories.count) categories, \(categorySubcategories.count) with subcategories")
     }
     
     // MARK: - Persistence

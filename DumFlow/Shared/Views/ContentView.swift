@@ -327,11 +327,11 @@ struct ContentView: View {
                                 if count > 0 {
                                     Text(formatCommentCount(count))
                                         .contentTransition(.numericText())
-                                        .font(.system(size: 12, weight: .bold))
+                                        .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
                                         .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                                         .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                                        .offset(x: 12, y: 0)  // 12pt to the right of button
+                                        .offset(x: 18, y: 0)  // Clean spacing to the right
                                         .animation(.easeInOut(duration: 0.5), value: count)
                                 }
                             }
@@ -342,7 +342,7 @@ struct ContentView: View {
                                 if webBrowser.canGoForward {
                                     webBrowser.goForward()
                                 } else {
-                                    webBrowser.browseForward(useInstantDisplay: true)
+                                    webBrowser.browseForward()
                                 }
                             } label: {
                                 Image(systemName: "arrow.right")
@@ -386,11 +386,10 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .animation(.easeInOut(duration: 0.3), value: scrollProgress)
                 }
-                .frame(width: 320, alignment: .trailing)  // Layer 2: Right-align, 320pt width
+                .frame(width: 320, alignment: .center)  // Layer 2: Center-align, 320pt width
             }
             .frame(maxWidth: .infinity, alignment: .center)        // Layer 1: Center
             .padding(.horizontal, 20)
-            .padding(.bottom, 20)
         }
         .transition(.asymmetric(
             insertion: .scale.combined(with: .opacity),
@@ -526,6 +525,8 @@ private func handleQuoteTap(_ comment: Comment) {
 struct FullToolbar: View {
     @EnvironmentObject var webBrowser: WebBrowser
     @EnvironmentObject var webPageViewModel: WebPageViewModel
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var browseForwardViewModel: BrowseForwardViewModel
     @Environment(\.colorScheme) var colorScheme
     let namespace: Namespace.ID
 
@@ -561,12 +562,7 @@ struct FullToolbar: View {
     
     // MARK: - Subviews
     private var trendingButton: some View {
-        NavigationLink(destination: TrendPageView()
-            .environmentObject(webPageViewModel)
-            .environmentObject(webBrowser)
-            .environmentObject(authViewModel)
-            .environmentObject(browseForwardViewModel)
-        ) {
+        NavigationLink(destination: TrendPageView()) {
             ZStack {
                 if #available(iOS 26.0, *) {
                     Circle()
@@ -594,145 +590,49 @@ struct FullToolbar: View {
     }
     
     private var searchBarSection: some View {
-        // Search capsule with same background as top buttons
-            ZStack {
-                // TextField - always present for focus
-                HStack(spacing: 0) {
-                    // Left padding
-                    Spacer().frame(width: 15)
+        ZStack {
+            SearchTextFieldView(
+                searchBarText: $searchBarText,
+                searchIsFocused: $searchIsFocused,
+                scrollProgress: scrollProgress,
+                pageBackgroundIsDark: webBrowser.pageBackgroundIsDark,
+                onSubmit: onSubmit
+            )
 
-                    TextField("Search or enter website name", text: $searchBarText)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
-                        .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
-                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                        .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                        .selectAllTextOnEditing()
-                        .focused($searchIsFocused)
-                        .onSubmit {
-                            onSubmit?()
+            if !searchIsFocused {
+                URLDisplayView(
+                    urlString: webBrowser.urlString,
+                    scrollProgress: scrollProgress,
+                    pageBackgroundIsDark: webBrowser.pageBackgroundIsDark,
+                    onSearchBarTap: onSearchBarTap,
+                    searchIsFocused: $searchIsFocused,
+                    isSafariReaderMode: $isSafariReaderMode,
+                    isShowingSafariView: $isShowingSafariView,
+                    webBrowser: webBrowser
+                )
+            }
+        }
+        .background(SearchBarBackground())
+        .overlay(SearchBarBorder(searchIsFocused: searchIsFocused, colorScheme: colorScheme))
+        .overlay(
+            // Progress bar at bottom of search capsule
+            VStack {
+                Spacer()
+                if webBrowser.loadingProgress > 0 && webBrowser.loadingProgress < 1.0 {
+                    Rectangle()
+                        .fill(webBrowser.isForwardNavigation ? .orange : .blue)
+                        .frame(height: 2)
+                        .scaleEffect(x: webBrowser.loadingProgress * 1.2, y: 1, anchor: .leading)
+                        .animation(.easeInOut(duration: 0.25), value: webBrowser.loadingProgress)
+                        .onAppear {
+                            print("🔄 DEBUG: Search capsule progress bar appeared!")
                         }
-
-                    // Clear button when focused and has text
-                    if !searchBarText.isEmpty {
-                        Button {
-                            searchBarText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.leading, 8)
-                    }
-
-                    // Right padding
-                    Spacer().frame(width: 15)
-                }
-                .frame(height: 36)
-                .opacity(searchIsFocused ? 1 : 0)
-
-                // URL text with buttons - visible when not focused
-                if !searchIsFocused {
-                    // ZStack layout for better text centering without spacer constraints
-                    ZStack {
-                        // Centered text with maximum available space
-                        Text(webBrowser.urlString.shortURL())
-                            .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
-                            .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                            .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if scrollProgress > 0.1 {
-                                    // When compact, use the callback to reset scroll and focus
-                                    onSearchBarTap?()
-                                } else {
-                                    // When full size, just focus
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                        searchIsFocused = true
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, max(2, 44 - (scrollProgress * 42)))
-                            .padding(.vertical, max(2, 12 - (scrollProgress * 10)))
-                        
-                        // Reader mode button positioned on left
-                        HStack {
-                            Button {
-                                isSafariReaderMode = true
-                                isShowingSafariView = true
-                            } label: {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: max(0, 18 - (scrollProgress * 18)), weight: .medium))
-                                    .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
-                                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                            }
-                            .frame(width: max(0, 40 - (scrollProgress * 40)), height: max(0, 40 - (scrollProgress * 40)))
-                            .opacity(max(0, 1.0 - (scrollProgress * 1.25)))
-                            .padding(.vertical, 2)
-                            .padding(.horizontal, 2)
-                            .allowsHitTesting(scrollProgress < 0.8)
-                            
-                            Spacer()
-                        }
-                        
-                        // Reload button positioned on right
-                        HStack {
-                            Spacer()
-                            
-                            Button {
-                                webBrowser.reload()
-                            } label: {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: max(0, 18 - (scrollProgress * 18)), weight: .medium))
-                                    .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
-                                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                            }
-                            .frame(width: max(0, 40 - (scrollProgress * 40)), height: max(0, 40 - (scrollProgress * 40)))
-                            .opacity(max(0, 1.0 - (scrollProgress * 1.25)))
-                            .padding(.vertical, 2)
-                            .padding(.horizontal, 2)
-                            .allowsHitTesting(scrollProgress < 0.8)
-                        }
-                    }
                 }
             }
-            .background(
-                Group {
-                    if #available(iOS 26.0, *) {
-                        Capsule()
-                            .glassEffect(.regular)
-                    } else {
-                        Capsule().fill(.thinMaterial)
-                    }
-                }
-            )
-            .overlay(
-                Capsule()
-                    .stroke(Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.15), lineWidth: 0.5)
-                    .opacity(searchIsFocused ? 1 : 0)
-            )
-            .overlay(
-                // Loading progress bar
-                VStack {
-                    Spacer()
-                    if webBrowser.loadingProgress > 0 && webBrowser.loadingProgress < 1.0 && !webBrowser.isUsingInstantContent {
-                        Rectangle()
-                            .fill(webBrowser.isForwardNavigation ? .orange : .blue)
-                            .frame(height: 2)
-                            .scaleEffect(x: webBrowser.loadingProgress * 1.2, y: 1, anchor: .leading)
-                            .animation(.easeInOut(duration: 0.25), value: webBrowser.loadingProgress)
-                    }
-                }
-                .clipShape(Capsule())
-            )
-            .animation(.easeInOut(duration: 0.3), value: scrollProgress)
-            .animation(.easeInOut(duration: 0.15), value: searchIsFocused)
+            .clipShape(Capsule()) // Clip to search capsule shape
+        )
+        .animation(.easeInOut(duration: 0.3), value: scrollProgress)
+        .animation(.easeInOut(duration: 0.15), value: searchIsFocused)
     }
     
     
@@ -767,9 +667,7 @@ struct FullToolbar: View {
                 .buttonStyle(.plain)
             } else {
                 // Profile button when not searching
-                NavigationLink(destination: ProfileView()
-                    .environmentObject(authViewModel)
-                ) {
+                NavigationLink(destination: SavedItemsView()) {
                     ZStack {
                         if #available(iOS 26.0, *) {
                             Circle()
@@ -1031,6 +929,219 @@ struct ContentViewFocusedPreview: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 searchIsFocused = true
             }
+        }
+    }
+}
+
+// MARK: - SearchBar Component Views
+
+struct SearchTextFieldView: View {
+    @Binding var searchBarText: String
+    let searchIsFocused: FocusState<Bool>.Binding
+    let scrollProgress: CGFloat
+    let pageBackgroundIsDark: Bool
+    let onSubmit: (() -> Void)?
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer().frame(width: 15)
+
+            TextField("Search or enter website name", text: $searchBarText)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
+                .foregroundColor(pageBackgroundIsDark ? .white : .black)
+                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+                .selectAllTextOnEditing()
+                .focused(searchIsFocused)
+                .onSubmit {
+                    onSubmit?()
+                }
+
+            if !searchBarText.isEmpty {
+                Button {
+                    searchBarText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.leading, 8)
+            }
+
+            Spacer().frame(width: 15)
+        }
+        .frame(height: 36)
+        .opacity(searchIsFocused.wrappedValue ? 1 : 0)
+    }
+}
+
+struct URLDisplayView: View {
+    let urlString: String
+    let scrollProgress: CGFloat
+    let pageBackgroundIsDark: Bool
+    let onSearchBarTap: (() -> Void)?
+    let searchIsFocused: FocusState<Bool>.Binding
+    @Binding var isSafariReaderMode: Bool
+    @Binding var isShowingSafariView: Bool
+    let webBrowser: WebBrowser
+
+    var body: some View {
+        ZStack {
+            URLTextView(
+                urlString: urlString,
+                scrollProgress: scrollProgress,
+                pageBackgroundIsDark: pageBackgroundIsDark,
+                onSearchBarTap: onSearchBarTap,
+                searchIsFocused: searchIsFocused
+            )
+
+            ReaderModeButton(
+                scrollProgress: scrollProgress,
+                pageBackgroundIsDark: pageBackgroundIsDark,
+                isSafariReaderMode: $isSafariReaderMode,
+                isShowingSafariView: $isShowingSafariView
+            )
+
+            ReloadButton(
+                scrollProgress: scrollProgress,
+                pageBackgroundIsDark: pageBackgroundIsDark,
+                webBrowser: webBrowser
+            )
+        }
+    }
+}
+
+struct URLTextView: View {
+    let urlString: String
+    let scrollProgress: CGFloat
+    let pageBackgroundIsDark: Bool
+    let onSearchBarTap: (() -> Void)?
+    let searchIsFocused: FocusState<Bool>.Binding
+
+    var body: some View {
+        Text(urlString.shortURL())
+            .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .foregroundColor(pageBackgroundIsDark ? .white : .black)
+            .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+            .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if scrollProgress > 0.1 {
+                    onSearchBarTap?()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        searchIsFocused.wrappedValue = true
+                    }
+                }
+            }
+            .padding(.horizontal, max(2, 44 - (scrollProgress * 42)))
+            .padding(.vertical, max(2, 12 - (scrollProgress * 10)))
+    }
+}
+
+struct ReaderModeButton: View {
+    let scrollProgress: CGFloat
+    let pageBackgroundIsDark: Bool
+    @Binding var isSafariReaderMode: Bool
+    @Binding var isShowingSafariView: Bool
+
+    var body: some View {
+        HStack {
+            Button {
+                isSafariReaderMode = true
+                isShowingSafariView = true
+            } label: {
+                Image(systemName: "doc.text")
+                    .font(.system(size: max(0, 18 - (scrollProgress * 18)), weight: .medium))
+                    .foregroundColor(pageBackgroundIsDark ? .white : .black)
+                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+            }
+            .frame(width: max(0, 40 - (scrollProgress * 40)), height: max(0, 40 - (scrollProgress * 40)))
+            .opacity(max(0, 1.0 - (scrollProgress * 1.25)))
+            .padding(.vertical, 2)
+            .padding(.horizontal, 2)
+            .allowsHitTesting(scrollProgress < 0.8)
+
+            Spacer()
+        }
+    }
+}
+
+struct ReloadButton: View {
+    let scrollProgress: CGFloat
+    let pageBackgroundIsDark: Bool
+    let webBrowser: WebBrowser
+
+    var body: some View {
+        HStack {
+            Spacer()
+
+            Button {
+                webBrowser.reload()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: max(0, 18 - (scrollProgress * 18)), weight: .medium))
+                    .foregroundColor(pageBackgroundIsDark ? .white : .black)
+                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+            }
+            .frame(width: max(0, 40 - (scrollProgress * 40)), height: max(0, 40 - (scrollProgress * 40)))
+            .opacity(max(0, 1.0 - (scrollProgress * 1.25)))
+            .padding(.vertical, 2)
+            .padding(.horizontal, 2)
+            .allowsHitTesting(scrollProgress < 0.8)
+        }
+    }
+}
+
+struct SearchBarBackground: View {
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Capsule().glassEffect(.regular)
+            } else {
+                Capsule().fill(.thinMaterial)
+            }
+        }
+    }
+}
+
+struct SearchBarBorder: View {
+    let searchIsFocused: Bool
+    let colorScheme: ColorScheme
+
+    var body: some View {
+        Capsule()
+            .stroke(Color.primary.opacity(colorScheme == .dark ? 0.1 : 0.15), lineWidth: 0.5)
+            .opacity(searchIsFocused ? 1 : 0)
+    }
+}
+
+struct LoadingProgressBar: View {
+    let webBrowser: WebBrowser
+
+    var body: some View {
+        VStack {
+            Spacer()
+            if webBrowser.loadingProgress > 0 && webBrowser.loadingProgress < 1.0 {
+                Rectangle()
+                    .fill(webBrowser.isForwardNavigation ? .orange : .blue)
+                    .frame(height: 8) // Made thicker for debugging
+                    .scaleEffect(x: webBrowser.loadingProgress * 1.2, y: 1, anchor: .leading)
+                    .animation(.easeInOut(duration: 0.25), value: webBrowser.loadingProgress)
+            }
+        }
+        .clipShape(Capsule())
+        .onAppear {
+            print("🔄 DEBUG: LoadingProgressBar appeared")
+        }
+        .onChange(of: webBrowser.loadingProgress) { progress in
+            print("🔄 DEBUG: Progress changed to \(progress)")
         }
     }
 }

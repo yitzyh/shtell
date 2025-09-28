@@ -12,25 +12,13 @@ struct ContentViewMenuView: View {
     @Binding var isShowingBrowseForwardPreferences: Bool
     @Binding var isSafariReaderMode: Bool
     @Binding var isShowingSaved: Bool
-    @State private var isShowingDynamoDBTest: Bool = false
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Top section - Square buttons
-                    VStack(spacing: 20) {
-                        HStack(spacing: 12) {
-                            // Share
-                            SquareMenuButton(
-                                icon: "square.and.arrow.up",
-                                title: "Share",
-                                action: {
-                                    dismiss()
-                                    // Share functionality handled by ShareLink
-                                }
-                            )
-                            
+                    // Top section - Square buttons (for views/navigation only)
+                    HStack(spacing: 12) {
                             // History
                             SquareMenuButton(
                                 icon: "clock",
@@ -40,7 +28,7 @@ struct ContentViewMenuView: View {
                                     isShowingHistory = true
                                 }
                             )
-                            
+
                             // Browse Forward
                             SquareMenuButton(
                                 icon: "arrow.up",
@@ -50,48 +38,10 @@ struct ContentViewMenuView: View {
                                     isShowingBrowseForwardPreferences = true
                                 }
                             )
-                        }
-                        
-                        HStack(spacing: 12) {
-                            // DynamoDB Test
-                            SquareMenuButton(
-                                icon: "cylinder.split.1x2",
-                                title: "DB Test",
-                                action: {
-                                    dismiss()
-                                    isShowingDynamoDBTest = true
-                                }
-                            )
-                            
-                            Spacer()
-                            Spacer()
-                        }
-                        
-                        HStack(spacing: 12) {
-                            // Reload
-                            SquareMenuButton(
-                                icon: "arrow.clockwise",
-                                title: "Reload",
-                                action: {
-                                    dismiss()
-                                    webBrowser.reload()
-                                }
-                            )
-                            
-                            // Safari
-                            SquareMenuButton(
-                                icon: "safari",
-                                title: "Safari",
-                                action: {
-                                    dismiss()
-                                    isSafariReaderMode = false
-                                    isShowingSafariView = true
-                                }
-                            )
-                            
+
                             // Saved
                             SquareMenuButton(
-                                icon: "star.fill",
+                                icon: "bookmark.fill",
                                 title: "Saved",
                                 action: {
                                     dismiss()
@@ -99,15 +49,70 @@ struct ContentViewMenuView: View {
                                 }
                             )
                         }
-                }
                 .padding(.top, 5)
                 .padding(.horizontal, 20)
-                
+
                 Spacer()
                     .frame(height: 40)
-                
+
+                // Row buttons section
+                VStack(spacing: 0) {
+                    MenuRow(
+                        icon: "square.and.arrow.up",
+                        title: "Share",
+                        action: {
+                            dismiss()
+                            // Share functionality handled by ShareLink
+                        }
+                    )
+
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 20)
+
+                    MenuRow(
+                        icon: "arrow.clockwise",
+                        title: "Reload",
+                        action: {
+                            dismiss()
+                            webBrowser.reload()
+                        }
+                    )
+
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 20)
+
+                    MenuRow(
+                        icon: "safari",
+                        title: "Safari",
+                        action: {
+                            dismiss()
+                            isSafariReaderMode = false
+                            isShowingSafariView = true
+                        }
+                    )
+
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 20)
+
+                    MenuRow(
+                        icon: "doc.text",
+                        title: "Safari Reader Mode",
+                        action: {
+                            dismiss()
+                            isSafariReaderMode = true
+                            isShowingSafariView = true
+                        }
+                    )
+                }
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 20)
-                
+
                 Spacer()
                     .frame(minHeight: 50)
                 }
@@ -121,11 +126,6 @@ struct ContentViewMenuView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $isShowingDynamoDBTest) {
-            DynamoDBTestView()
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
         }
     }
 }
@@ -176,15 +176,16 @@ struct MenuRow: View {
     var body: some View {
         Button(action: action) {
             HStack {
-                Text(title)
-                    .font(.system(size: 17))
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
                 Image(systemName: icon)
                     .font(.system(size: 16))
                     .foregroundColor(iconColor)
+                    .frame(width: 20)
+
+                Text(title)
+                    .font(.system(size: 17))
+                    .foregroundColor(.primary)
+
+                Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)

@@ -69,7 +69,7 @@ struct ParentWebPageRowView: View {
 
             // Save button and count
             HStack(spacing: 4) {
-                Image(systemName: isSaved ? "star.fill" : "star")
+                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
                     .foregroundColor(isSaved ? .blue : .secondary)
                     .font(.system(.callout, weight: .light))
                     .onTapGesture {
@@ -97,7 +97,7 @@ struct ParentWebPageRowView: View {
                 isSaved.toggle()
                 webPageViewModel.toggleSave(on: webPage)
             } label: {
-                Label(isSaved ? "Unsave" : "Save", systemImage: isSaved ? "star.fill" : "star")
+                Label(isSaved ? "Unsave" : "Save", systemImage: isSaved ? "bookmark.fill" : "bookmark")
             }
             .tint(.blue)
 
