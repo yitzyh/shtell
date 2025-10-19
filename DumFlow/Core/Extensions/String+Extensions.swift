@@ -19,19 +19,29 @@ extension String {
 
 extension String {
     func shortURL() -> String{
-        
+
+        // Handle custom shtell:// URLs
+        if self.hasPrefix("shtell://") {
+            return "shtell"
+        }
+
+        // Handle data URLs (splash screen)
+        if self.hasPrefix("data:") {
+            return "shtell"
+        }
+
         let pattern = "^(?:https?://)?(?:www\\.)?([^/]+)"
-        
+
         if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
             let range = NSRange(location: 0, length: self.utf16.count)
             if let match = regex.firstMatch(in: self, options: [], range: range) {
                 if let domainRange = Range(match.range(at: 1), in: self) {
                     var domain = String(self[domainRange])
-                    
+
                     // Strip mobile language prefixes like "en.m.", "fr.m.", etc.
                     let mobilePrefix = #"^[a-z]{2}\.m\."#
                     domain = domain.replacingOccurrences(of: mobilePrefix, with: "", options: .regularExpression)
-                    
+
                     return domain
                 }
             }
@@ -176,6 +186,14 @@ extension String {
 extension String {
     /// Returns a normalized version of the URL string that strips tracking parameters and prevents CloudKit record name crashes
     var normalizedURL: String? {
+        // Return nil for empty strings to prevent CloudKit crashes
+        guard !self.isEmpty else { return nil }
+
+        // Handle custom shtell:// URLs - use them as-is for CloudKit record names
+        if self.hasPrefix("shtell://") {
+            return self
+        }
+
         guard var components = URLComponents(string: self) else { return nil }
         
         // Always remove fragments, user info, and passwords

@@ -52,7 +52,7 @@ private struct SimulatorHelper {
 @MainActor
 class WebBrowser: ObservableObject{
 
-    @Published var urlString = "https://www.google.com"
+    @Published var urlString = "shtell://beta"
         {
             didSet {
             }
@@ -85,6 +85,18 @@ class WebBrowser: ObservableObject{
     func goBack()    { wkWebView?.goBack()    }
     func goForward() { wkWebView?.goForward() }
     func reload() { wkWebView?.reload()}
+
+    func jumpToLastForwardPage() {
+        // Jump directly to the last page in forward history
+        guard let webView = wkWebView, webView.canGoForward else { return }
+
+        // Get the last item in the forward list
+        let forwardList = webView.backForwardList.forwardList
+        guard let lastForwardItem = forwardList.last else { return }
+
+        // Jump directly to it
+        webView.go(to: lastForwardItem)
+    }
     
     func scrollToTop() {
         wkWebView?.evaluateJavaScript("window.scrollTo(0, 0);")
@@ -92,47 +104,45 @@ class WebBrowser: ObservableObject{
     
     // MARK: - Splash Screen Functions
     func shouldShowSplashScreen() -> Bool {
-        return splashScreenShowCount < splashScreenMaxShows
+        // Check UserDefaults to see if user has seen splash before
+        let hasSeenSplash = UserDefaults.standard.bool(forKey: "hasSeenSplashScreen")
+        return !hasSeenSplash
+    }
+
+    func markSplashScreenAsSeen() {
+        UserDefaults.standard.set(true, forKey: "hasSeenSplashScreen")
     }
     
     func getSplashScreenHTML() -> String {
-        switch splashScreenCurrentIndex {
-        case 0: // Page 1: Welcome with beta version
-            return """
+        // Always return the same splash screen with instruction text
+        return """
             <!DOCTYPE html>
             <html>
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body { 
-                        background: #000000; 
-                        color: #ff6b35; 
-                        font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-                        margin: 0; 
-                        padding: 0; 
-                        height: 100vh; 
+                    body {
+                        background: #000000;
+                        color: #ff6b35;
+                        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        height: 100vh;
                         width: 100vw;
-                        display: flex; 
+                        display: flex;
                         flex-direction: column;
-                        align-items: center; 
+                        align-items: center;
                         justify-content: center;
                         text-align: center;
-                        overflow: hidden;
+                        overflow-x: hidden;
+                        overflow-y: auto;
                         position: relative;
                     }
-                    .header {
+                    .version {
                         position: absolute;
                         top: 50%;
                         left: 50%;
-                        transform: translate(-50%, -50%);
-                    }
-                    .title {
-                        font-size: 24px;
-                        font-weight: 400;
-                        margin-bottom: 5px;
-                        text-transform: lowercase;
-                    }
-                    .version {
+                        transform: translateX(-50%);
                         font-size: 18px;
                         font-weight: 300;
                         opacity: 0.8;
@@ -144,13 +154,6 @@ class WebBrowser: ObservableObject{
                         height: 100%;
                         pointer-events: none;
                     }
-                    .arrow-browse {
-                        position: absolute;
-                        right: 35%;
-                        bottom: 13%;
-                        font-size: 40px;
-                        transform: rotate(45deg);
-                    }
                     .arrow-up {
                         position: absolute;
                         top: 20px;
@@ -158,14 +161,28 @@ class WebBrowser: ObservableObject{
                         transform: translateX(50%);
                         font-size: 40px;
                     }
+                    .instruction {
+                        position: absolute;
+                        top: 80px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        font-size: 16px;
+                        font-weight: 400;
+                        opacity: 0.7;
+                        text-align: center;
+                        max-width: 90vw;
+                    }
                     .shtell-horizontal {
                         position: absolute;
-                        bottom: 25%;
-                        width: 100%;
+                        top: 42%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        width: 90vw;
                         display: flex;
                         justify-content: space-between;
-                        padding: 0 20px;
+                        padding: 0;
                         box-sizing: border-box;
+                        align-items: center;
                     }
                     .letter {
                         font-size: 12vh;
@@ -173,17 +190,57 @@ class WebBrowser: ObservableObject{
                         line-height: 1;
                         margin: 0;
                         padding: 0;
+                        flex: 1;
+                        text-align: center;
+                    }
+                    .shtell-vertical {
+                        position: absolute;
+                        top: 95%;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 90vw;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 0;
+                    }
+                    .vertical-letter {
+                        font-size: 100vw;
+                        font-weight: 700;
+                        line-height: 0.8;
+                        width: 100vw;
+                        text-align: center;
+                        margin: 0;
+                        padding: 0;
+                        letter-spacing: 0;
+                    }
+                    .arrow-grid {
+                        position: absolute;
+                        top: 90%;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        width: 90vw;
+                        display: grid;
+                        grid-template-columns: repeat(10, 1fr);
+                        gap: 2px;
+                        z-index: -1;
+                        color: #ff6b35;
+                    }
+                    .arrow-grid-cell {
+                        font-size: 40px;
+                        text-align: center;
+                        line-height: 1;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                     }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div class="title">shtell</div>
-                    <div class="version">beta 0.0.1</div>
-                </div>
+                <div class="version">beta 1.0.0</div>
                 <div class="arrows">
-                    <div class="arrow-browse">↗</div>
                     <div class="arrow-up">↑</div>
+                    <div class="instruction">Pull down or tap orange button to browse forward</div>
                 </div>
                 <div class="shtell-horizontal">
                     <div class="letter">S</div>
@@ -193,112 +250,105 @@ class WebBrowser: ObservableObject{
                     <div class="letter">L</div>
                     <div class="letter">L</div>
                 </div>
+                <div class="arrow-grid">
+            """ + String(repeating: String(repeating: "<div class=\"arrow-grid-cell\">↑</div>", count: 10), count: 70) + """
+                </div>
+                <div class="shtell-vertical">
+                    <div class="vertical-letter">S</div>
+                    <div class="vertical-letter">H</div>
+                    <div class="vertical-letter">T</div>
+                    <div class="vertical-letter">E</div>
+                    <div class="vertical-letter">L</div>
+                    <div class="vertical-letter">L</div>
+                </div>
             </body>
             </html>
             """
-            
-        case 1: // Page 2: Comment button tutorial
-            return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body { 
-                        background: #000000; 
-                        color: #ff6b35; 
-                        font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-                        margin: 0; 
-                        padding: 0; 
-                        height: 100vh; 
-                        width: 100vw;
-                        display: flex; 
-                        flex-direction: column;
-                        align-items: center; 
-                        justify-content: center;
-                        text-align: center;
-                        overflow: hidden;
-                        position: relative;
-                    }
-                    .comment-arrow {
-                        position: absolute;
-                        bottom: 100px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        font-size: 80px;
-                    }
-                    .instruction {
-                        font-size: 24px;
-                        font-weight: 500;
-                        margin-bottom: 40px;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="instruction">Tap comment button</div>
-                <div class="comment-arrow">↓</div>
-            </body>
-            </html>
-            """
-            
-        case 2: // Page 3: Massive up arrow
-            return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body { 
-                        background: #000000; 
-                        color: #ff6b35; 
-                        font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-                        margin: 0; 
-                        padding: 0; 
-                        height: 100vh; 
-                        width: 100vw;
-                        display: flex; 
-                        align-items: center; 
-                        justify-content: center;
-                        overflow: hidden;
-                    }
-                    .massive-arrow {
-                        font-size: 80vh;
-                        line-height: 1;
-                        font-weight: 700;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="massive-arrow">↑</div>
-            </body>
-            </html>
-            """
-            
-        default:
-            return ""
-        }
     }
     
     func advanceSplashScreen() {
         self.splashScreenShowCount += 1
-        self.splashScreenCurrentIndex = (self.splashScreenCurrentIndex + 1) % 3
     }
-    
+
     func resetSplashScreen() {
         splashScreenShowCount = 0
         splashScreenCurrentIndex = 0
     }
-    
-    func loadSplashScreenAsURL(index: Int) -> URL? {
-        let originalIndex = splashScreenCurrentIndex
-        splashScreenCurrentIndex = index
-        let splashHTML = getSplashScreenHTML()
-        splashScreenCurrentIndex = originalIndex
-        
-        let encodedHTML = splashHTML.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        return URL(string: "data:text/html;charset=utf-8,\(encodedHTML)")
+
+    // MARK: - Home Page Functions
+    func getHomePageHTML() -> String {
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Shtell - The comment section for the internet</title>
+            <meta name="description" content="The comment section for the internet. Discover and discuss webpages.">
+            <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🔶</text></svg>">
+            <style>
+                body {
+                    background: #000000;
+                    color: #ff6b35;
+                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                    height: 100vh;
+                    width: 100vw;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    overflow: hidden;
+                    position: relative;
+                }
+                .top-arrow-container {
+                    position: absolute;
+                    top: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+                .top-arrow {
+                    font-size: 40px;
+                    line-height: 1;
+                    margin-bottom: 8px;
+                }
+                .top-instruction {
+                    font-size: 14px;
+                    font-weight: 400;
+                    opacity: 0.7;
+                    white-space: nowrap;
+                }
+                .logo {
+                    font-size: 20vh;
+                    font-weight: 700;
+                    line-height: 1;
+                    margin-bottom: 20px;
+                }
+                .tagline {
+                    font-size: 20px;
+                    font-weight: 300;
+                    opacity: 0.8;
+                    padding: 0 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="top-arrow-container">
+                <div class="top-arrow">↑</div>
+                <div class="top-instruction">Pull down to browse forward</div>
+            </div>
+            <div class="logo">SHTELL</div>
+            <div class="tagline">the comment section for the internet</div>
+        </body>
+        </html>
+        """
     }
-    
+
     // MARK: - Reader Mode Functions
     @MainActor
     func toggleReaderMode() async {
@@ -383,7 +433,7 @@ class WebBrowser: ObservableObject{
         if canGoForward {
             goForward()
         } else {
-            guard let browseForwardViewModel = browseForwardViewModel else {
+            guard browseForwardViewModel != nil else {
                 #if DEBUG
                 print("⚠️ BrowseForward: No ViewModel available, using Wikipedia fallback")
                 #endif
@@ -473,7 +523,7 @@ class WebBrowser: ObservableObject{
                 if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
                     if (element.parentElement) {
                         return getBackgroundColor(element.parentElement);
-                    }
+                        }
                     return 'rgb(255, 255, 255)'; // Default to white
                 }
                 return bg;
@@ -527,9 +577,9 @@ class WebBrowser: ObservableObject{
         self.currentTitle = title
     }
     
-    init(urlString: String = "https://www.google.com") {
+    init(urlString: String = "shtell://beta") {
+        // Default landing page - will be replaced by BrowseForward after splash
         self.urlString = urlString
-
     }
 
     // MARK: - Helper Functions
@@ -654,10 +704,11 @@ struct WebView: UIViewRepresentable {
             let dataURL = URL(string: "data:text/html;charset=utf-8,\(encodedHTML)")!
             webView.load(URLRequest(url: dataURL))
             webBrowser.advanceSplashScreen()
+            webBrowser.markSplashScreenAsSeen()
         } else {
-            // Load regular content after splash screens are done
-            if let url = URL(string: webBrowser.urlString) {
-                webView.load(URLRequest(url: url))
+            // Splash already shown - trigger BrowseForward to load first item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                webBrowser.browseForward()
             }
         }
         
@@ -667,9 +718,13 @@ struct WebView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        
+
             if webBrowser.isUserInitiatedNavigation {
-                if let url = URL(string: webBrowser.urlString) {
+                if webBrowser.urlString.hasPrefix("shtell://") {
+                    // Load splash screen for shtell://beta
+                    let splashHTML = webBrowser.getSplashScreenHTML()
+                    uiView.loadHTMLString(splashHTML, baseURL: URL(string: webBrowser.urlString))
+                } else if let url = URL(string: webBrowser.urlString) {
                     uiView.load(URLRequest(url: url))
                 }
                 Task { @MainActor in
@@ -739,22 +794,22 @@ struct WebView: UIViewRepresentable {
                         console.log('🔍 DEBUG JS: Selection changed to:', currentSelection);
                         
                         if (currentSelection.length > 0) {
-                            // Get selection position
-                            const range = selection.getRangeAt(0);
-                            const rect = range.getBoundingClientRect();
-                            
-                            window.webkit.messageHandlers.textSelection.postMessage({
-                                text: currentSelection,
-                                x: rect.left + rect.width / 2,
-                                y: rect.bottom,
-                                hasSelection: true
+                        // Get selection position
+                        const range = selection.getRangeAt(0);
+                        const rect = range.getBoundingClientRect();
+                        
+                        window.webkit.messageHandlers.textSelection.postMessage({
+                            text: currentSelection,
+                            x: rect.left + rect.width / 2,
+                            y: rect.bottom,
+                            hasSelection: true
                             });
                         } else {
-                            window.webkit.messageHandlers.textSelection.postMessage({
-                                hasSelection: false
+                        window.webkit.messageHandlers.textSelection.postMessage({
+                            hasSelection: false
                             });
                         }
-                    }
+                        }
                 }
                 
                 // Monitor selection changes
@@ -855,7 +910,11 @@ struct WebView: UIViewRepresentable {
                 guard let self = self else { return }
                 if let url = change.newValue {
                     DispatchQueue.main.async {
-                        self.webBrowser.urlString = url?.absoluteString.stripTrailingSlash() ?? ""
+                        let newURLString = url?.absoluteString.stripTrailingSlash() ?? ""
+                        // Don't update to data: URLs - keep shtell://beta when loading splash HTML
+                        if !newURLString.hasPrefix("data:") {
+                            self.webBrowser.urlString = newURLString
+                        }
                     }
                 }
             }
@@ -873,7 +932,6 @@ struct WebView: UIViewRepresentable {
             
             progressObserver = webView.observe(\.estimatedProgress, options: [.new]) { [weak self] wv, _ in
                 DispatchQueue.main.async {
-                    print("🔄 Progress: \(wv.estimatedProgress)")
                     self?.webBrowser.loadingProgress = wv.estimatedProgress
                 }
             }
@@ -916,14 +974,14 @@ struct WebView: UIViewRepresentable {
                         <h1 style="color: #ff6b35;">🌐 Network Issue</h1>
                         <p style="color: #666; margin: 20px 0;">Unable to load website in simulator.</p>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                            <strong>Error:</strong> \(error.localizedDescription)
+                        <strong>Error:</strong> \(error.localizedDescription)
                         </div>
                         <p style="font-size: 14px; color: #888;">
-                            \(SimulatorHelper.simulatorNetworkFixSuggestion)
+                        \(SimulatorHelper.simulatorNetworkFixSuggestion)
                         </p>
                         <button onclick="location.reload()" 
-                                style="background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer;">
-                            Try Again
+                            style="background: #ff6b35; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer;">
+                        Try Again
                         </button>
                     </div>
                 </body>
@@ -952,6 +1010,11 @@ struct WebView: UIViewRepresentable {
                 // End pull-to-refresh animation if active
                 webView.scrollView.refreshControl?.endRefreshing()
 
+                // Reset scroll position for data URLs (splash screen)
+                if let url = webView.url?.absoluteString, url.hasPrefix("data:") {
+                    webView.scrollView.setContentOffset(.zero, animated: false)
+                }
+
                 // Track browser history
                 if let url = webView.url?.absoluteString,
                    self.webBrowser.webPageViewModel != nil {
@@ -959,22 +1022,22 @@ struct WebView: UIViewRepresentable {
                     // Get page title
                     webView.evaluateJavaScript("document.title") { [weak self] result, error in
                         DispatchQueue.main.async {
-                            guard let self = self,
-                                  let webPageViewModel = self.webBrowser.webPageViewModel else { return }
+                        guard let self = self,
+                              let webPageViewModel = self.webBrowser.webPageViewModel else { return }
 
-                            let title = result as? String
+                        let title = result as? String
 
-                            // Update browser title for tab sync
-                            self.webBrowser.setCurrentTitle(title)
+                        // Update browser title for tab sync
+                        self.webBrowser.setCurrentTitle(title)
 
-                            // Add to history
-                            webPageViewModel.browserHistoryService.addToHistory(
-                                urlString: url,
-                                title: title,
-                                referrerURL: self.webBrowser.urlString != url ? self.webBrowser.urlString : nil
-                            )
+                        // Add to history
+                        webPageViewModel.browserHistoryService.addToHistory(
+                            urlString: url,
+                            title: title,
+                            referrerURL: self.webBrowser.urlString != url ? self.webBrowser.urlString : nil
+                        )
                         }
-                    }
+                        }
                 }
 
                 // Detect webpage background color for adaptive UI
@@ -1011,7 +1074,7 @@ struct WebView: UIViewRepresentable {
                     let newProgress = min(1.0, scrollProgress + (scrollDelta / scrollSensitivity))
                     withAnimation(.easeOut(duration: 0.2)) {
                         scrollProgress = newProgress
-                    }
+                        }
                 }
             } else if scrollDelta < 0 { // Scrolling up
                 // Always expand immediately on upward scroll
@@ -1061,11 +1124,11 @@ struct WebView: UIViewRepresentable {
                     while (element && element.nodeType === Node.ELEMENT_NODE) {
                         var selector = element.nodeName.toLowerCase();
                         if (element.className) {
-                            selector += '.' + element.className.split(' ').join('.');
+                        selector += '.' + element.className.split(' ').join('.');
                         }
                         path.unshift(selector);
                         element = element.parentElement;
-                    }
+                        }
                     return path.join(' > ');
                 }
                 
@@ -1083,7 +1146,7 @@ struct WebView: UIViewRepresentable {
                     if (node === range.startContainer) {
                         textOffset += range.startOffset;
                         break;
-                    }
+                        }
                     textOffset += node.textContent.length;
                 }
                 
@@ -1126,7 +1189,7 @@ struct WebView: UIViewRepresentable {
                 if let selectedComment = webBrowser.webPageViewModel?.uiState.selectedComment {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         self.scrollToQuote(for: selectedComment, in: webView)
-                    }
+                        }
                 }
             }
         }
@@ -1193,24 +1256,24 @@ struct WebView: UIViewRepresentable {
                 // Add CSS styles for highlighting
                 const style = document.createElement('style');
                 style.textContent = `
-                    .dumflow-quote-highlight {
+                        .dumflow-quote-highlight {
                         background-color: rgba(255, 235, 59, 0.3);
                         border-radius: 3px;
                         cursor: pointer;
                         position: relative;
                         transition: background-color 0.2s ease;
-                    }
-                    .dumflow-quote-highlight:hover {
+                        }
+                        .dumflow-quote-highlight:hover {
                         background-color: rgba(255, 235, 59, 0.5);
-                    }
-                    .dumflow-quote-highlight::after {
+                        }
+                        .dumflow-quote-highlight::after {
                         content: '💬';
                         position: absolute;
                         right: -20px;
                         top: -5px;
                         font-size: 12px;
                         opacity: 0.7;
-                    }
+                        }
                 `;
                 document.head.appendChild(style);
                 
@@ -1222,60 +1285,60 @@ struct WebView: UIViewRepresentable {
                         
                         // Find the text within the element
                         const walker = document.createTreeWalker(
-                            element,
-                            NodeFilter.SHOW_TEXT,
-                            null,
-                            false
+                        element,
+                        NodeFilter.SHOW_TEXT,
+                        null,
+                        false
                         );
                         
                         let currentOffset = 0;
                         let node;
                         
                         while (node = walker.nextNode()) {
-                            const nodeLength = node.textContent.length;
+                        const nodeLength = node.textContent.length;
+                        
+                        if (currentOffset + nodeLength >= comment.offset) {
+                            const startIndex = comment.offset - currentOffset;
+                            const endIndex = startIndex + comment.text.length;
                             
-                            if (currentOffset + nodeLength >= comment.offset) {
-                                const startIndex = comment.offset - currentOffset;
-                                const endIndex = startIndex + comment.text.length;
+                            if (endIndex <= nodeLength) {
+                                // Text is within this node
+                                const actualText = node.textContent.substring(startIndex, endIndex);
                                 
-                                if (endIndex <= nodeLength) {
-                                    // Text is within this node
-                                    const actualText = node.textContent.substring(startIndex, endIndex);
+                                if (actualText === comment.text) {
+                                    // Create highlight span
+                                    const range = document.createRange();
+                                    range.setStart(node, startIndex);
+                                    range.setEnd(node, endIndex);
                                     
-                                    if (actualText === comment.text) {
-                                        // Create highlight span
-                                        const range = document.createRange();
-                                        range.setStart(node, startIndex);
-                                        range.setEnd(node, endIndex);
-                                        
-                                        const span = document.createElement('span');
-                                        span.className = 'dumflow-quote-highlight';
-                                        span.setAttribute('data-comment-id', comment.commentID);
-                                        
-                                        // Add click handler
-                                        span.addEventListener('click', function(e) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            window.webkit.messageHandlers.commentTap.postMessage({
-                                                commentID: comment.commentID
+                                    const span = document.createElement('span');
+                                    span.className = 'dumflow-quote-highlight';
+                                    span.setAttribute('data-comment-id', comment.commentID);
+                                    
+                                    // Add click handler
+                                    span.addEventListener('click', function(e) {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        window.webkit.messageHandlers.commentTap.postMessage({
+                                            commentID: comment.commentID
                                             });
                                         });
-                                        
-                                        range.surroundContents(span);
-                                        return true;
+                                    
+                                    range.surroundContents(span);
+                                    return true;
                                     }
                                 }
-                                break;
+                            break;
                             }
-                            
-                            currentOffset += nodeLength;
+                        
+                        currentOffset += nodeLength;
                         }
                         
                         return false;
-                    } catch (error) {
+                        } catch (error) {
                         console.error('Error highlighting text:', error);
                         return false;
-                    }
+                        }
                 }
                 
                 // Highlight all comments
@@ -1283,7 +1346,7 @@ struct WebView: UIViewRepresentable {
                 comments.forEach(comment => {
                     if (findAndHighlightText(comment)) {
                         highlightedCount++;
-                    }
+                        }
                 });
                 
                 return highlightedCount;
@@ -1310,30 +1373,30 @@ struct WebView: UIViewRepresentable {
                     if (highlightedElement) {
                         // Scroll to the highlighted element
                         highlightedElement.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'center',
-                            inline: 'nearest'
+                        behavior: 'smooth', 
+                        block: 'center',
+                        inline: 'nearest'
                         });
                         
                         // Flash the highlight to draw attention
                         highlightedElement.style.backgroundColor = 'rgba(255, 193, 7, 0.8)';
                         setTimeout(() => {
-                            highlightedElement.style.backgroundColor = 'rgba(255, 235, 59, 0.3)';
+                        highlightedElement.style.backgroundColor = 'rgba(255, 235, 59, 0.3)';
                         }, 1000);
                         
                         return 'scrolled_to_highlight';
-                    } else {
+                        } else {
                         // Fallback: try to find and scroll to the text using selector
                         const element = document.querySelector('\(selector)');
                         if (element) {
-                            element.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'center',
-                                inline: 'nearest'
+                        element.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center',
+                            inline: 'nearest'
                             });
-                            return 'scrolled_to_element';
+                        return 'scrolled_to_element';
                         }
-                    }
+                        }
                     
                     return 'not_found';
                 } catch (error) {
@@ -1352,7 +1415,7 @@ struct WebView: UIViewRepresentable {
                     // Clear the selectedComment after successful navigation
                     DispatchQueue.main.async {
                         self.webBrowser.webPageViewModel?.uiState.selectedComment = nil
-                    }
+                        }
                 }
             }
         }
@@ -1378,10 +1441,10 @@ struct WebView: UIViewRepresentable {
                         print("🔍 DEBUG WebView: Showing quote button at position (\(x), \(y))")
                         let position = CGPoint(x: x, y: y)
                         self.showQuoteButton(at: position, in: webView)
-                    } else {
+                        } else {
                         print("🔍 DEBUG WebView: Hiding quote button")
                         self.hideQuoteButton()
-                    }
+                        }
                 }
             }
         }
@@ -1424,12 +1487,14 @@ struct WebView: UIViewRepresentable {
 class ArrowRefreshControl: UIRefreshControl {
     weak var webBrowser: WebBrowser?
     private let arrowView = UIImageView()
-    
+    private var hasTriggered = false
+    private var feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
+
     override init() {
         super.init()
         setupArrowView()
     }
-    
+
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupArrowView()
@@ -1453,9 +1518,9 @@ class ArrowRefreshControl: UIRefreshControl {
             arrowView.heightAnchor.constraint(equalToConstant: 24)
         ])
         
-        // Initial state - hidden and small
+        // Initial state - hidden but full size
         arrowView.alpha = 0
-        arrowView.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+        arrowView.transform = .identity  // No scaling - keep at full size
     }
     
     override func layoutSubviews() {

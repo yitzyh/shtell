@@ -34,6 +34,7 @@ struct ContentView: View {
     @State private var isShowingMenu = false
     @State private var isShowingSaved = false
     @State private var isShowingProfile = false
+    @State private var isShowingSignIn = false
     
     private let topToolbarHeight: CGFloat = 44
     private let toolbarHeight: CGFloat = 44
@@ -187,8 +188,9 @@ struct ContentView: View {
                 .presentationContentInteraction(.resizes)
         }
         .sheet(isPresented: $isShowingHistory) {
-            HistoryView()
+            HistoryView(historyService: webPageViewModel.browserHistoryService)
                 .environmentObject(webPageViewModel)
+                .environmentObject(authViewModel)
                 .environmentObject(webBrowser)
         }
         .sheet(isPresented: $isShowingMenu) {
@@ -209,6 +211,25 @@ struct ContentView: View {
                 .environmentObject(authViewModel)
                 .environmentObject(webPageViewModel)
                 .environmentObject(webBrowser)
+        }
+        .sheet(isPresented: $isShowingSignIn) {
+            VStack(spacing: 20) {
+                Text("Sign in to save webpages")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+
+                authViewModel.signInButton()
+                    .frame(height: 50)
+            }
+            .padding()
+            .presentationDetents([.height(200)])
+            .presentationDragIndicator(.visible)
+            .onReceive(authViewModel.$signedInUser) { user in
+                if user != nil {
+                    // User signed in, dismiss sheet
+                    isShowingSignIn = false
+                }
+            }
         }
         .onAppear{
             initViewModel()
@@ -278,20 +299,22 @@ struct ContentView: View {
                             
                             // Save button - disappears last (0.66 to 1.0)
                             if scrollProgress < 1.0 {
-                                Button {
-                                    handleSaveButtonTap()
-                                } label: {
-                                    let isSaved = webPageViewModel.uiState.savedWebPageStates.contains(webBrowser.urlString.normalizedURL ?? webBrowser.urlString)
-                                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                        .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
-                                        .font(.system(size: 22, weight: .medium))
-                                        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                                        .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                                }
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                                .opacity(scrollProgress < 0.66 ? 1.0 : max(0, 1.0 - (CGFloat((scrollProgress - 0.66) / 0.34))))
-                                .scaleEffect(scrollProgress < 0.66 ? 1.0 : max(0.5, 1.0 - (CGFloat((scrollProgress - 0.66) / 0.34) * 0.5)))
+                                let isSaved = webPageViewModel.uiState.savedWebPageStates.contains(webBrowser.urlString.normalizedURL ?? webBrowser.urlString)
+                                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                                    .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
+                                    .font(.system(size: 22, weight: .medium))
+                                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                                    .onLongPressGesture {
+                                        isShowingSaved = true
+                                    }
+                                    .onTapGesture {
+                                        handleSaveButtonTap()
+                                    }
+                                    .opacity(scrollProgress < 0.66 ? 1.0 : max(0, 1.0 - (CGFloat((scrollProgress - 0.66) / 0.34))))
+                                    .scaleEffect(scrollProgress < 0.66 ? 1.0 : max(0.5, 1.0 - (CGFloat((scrollProgress - 0.66) / 0.34) * 0.5)))
                             }
                             
                             // Spacer 3: Save → Comment (20pt → 0pt, disappears with Save)
@@ -308,22 +331,21 @@ struct ContentView: View {
                             let normalized = webBrowser.urlString.normalizedURL ?? webBrowser.urlString
                             let count = webPageViewModel.contentState.commentCountLookup[normalized] ?? webPageViewModel.contentState.webPage?.commentCount ?? 0
                             
-                            Button {
-                                if webBrowser.urlString.normalizedURL != nil {
-                                    isShowingComments.toggle()
-                                } else {
-                                    isShowingWelcome.toggle()
+                            Image(systemName: "bubble.right")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
+                                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                                .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if webBrowser.urlString.normalizedURL != nil {
+                                        isShowingComments.toggle()
+                                    } else {
+                                        isShowingWelcome.toggle()
+                                    }
                                 }
-                            } label: {
-                                Image(systemName: "bubble.right")
-                                    .font(.system(size: 22, weight: .medium))
-                                    .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
-                                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                            }
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .overlay(alignment: .trailing) {
+                            .overlay(alignment: .leading) {
                                 if count > 0 {
                                     Text(formatCommentCount(count))
                                         .contentTransition(.numericText())
@@ -331,40 +353,16 @@ struct ContentView: View {
                                         .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
                                         .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                                         .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                                        .offset(x: 18, y: 0)  // Clean spacing to the right
+                                        .offset(x: 41, y: 0)  // Positioned right at the edge of the button
                                         .animation(.easeInOut(duration: 0.5), value: count)
                                 }
                             }
                             .matchedGeometryEffect(id: "commentButton", in: bottomToolbarNamespace)
                             
-                            // Forward button (always visible)
-                            Button {
-                                if webBrowser.canGoForward {
-                                    webBrowser.goForward()
-                                } else {
-                                    webBrowser.browseForward()
-                                }
-                            } label: {
-                                Image(systemName: "arrow.right")
-                                    .foregroundColor(webBrowser.canGoForward ? (webBrowser.pageBackgroundIsDark ? .white : .black) : .orange)
-                                    .font(.system(size: 22, weight: webBrowser.canGoForward ? .medium : .bold))
-                                    .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                                    .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-                            }
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                            .simultaneousGesture(
-                                LongPressGesture(minimumDuration: 0.5)
-                                    .onEnded { _ in
-                                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                        impactFeedback.impactOccurred()
-                                        
-                                        if webBrowser.canGoForward {
-                                            webBrowser.goForward()
-                                        } else {
-                                            isShowingBrowseForwardPreferences = true
-                                        }
-                                    }
+                            // Forward/BrowseForward button with smart rotation
+                            BrowseForwardButton(
+                                webBrowser: webBrowser,
+                                isShowingBrowseForwardPreferences: $isShowingBrowseForwardPreferences
                             )
                             .matchedGeometryEffect(id: "forwardButton", in: bottomToolbarNamespace)
                         }
@@ -376,7 +374,7 @@ struct ContentView: View {
                         Group {
                             if #available(iOS 26.0, *) {
                                 RoundedRectangle(cornerRadius: 22)
-                                    .glassEffect(.regular.interactive())
+                                    .glassEffect(.regular)
                             } else {
                                 RoundedRectangle(cornerRadius: 22)
                                     .fill(.ultraThinMaterial)
@@ -386,9 +384,33 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .animation(.easeInOut(duration: 0.3), value: scrollProgress)
                 }
-                .frame(width: 320, alignment: .center)  // Layer 2: Center-align, 320pt width
+                .frame(width: 320, alignment: .center)  // Layer 2: Always center
             }
-            .frame(maxWidth: .infinity, alignment: .center)        // Layer 1: Center
+            .frame(maxWidth: .infinity, alignment: .center)        // Layer 1: Always center
+            .offset(x: {
+                // Calculate how much space the left buttons took up and shift right by that amount
+                var offset: CGFloat = 0
+
+                // Back button (44pt) + spacer (20pt) disappears from 0.0 to 0.33
+                if scrollProgress > 0.0 {
+                    let backProgress = min(scrollProgress / 0.33, 1.0)
+                    offset += (44 + 20) * backProgress
+                }
+
+                // Menu button (44pt) + spacer (20pt) disappears from 0.33 to 0.66
+                if scrollProgress > 0.33 {
+                    let menuProgress = min((scrollProgress - 0.33) / 0.33, 1.0)
+                    offset += (44 + 20) * menuProgress
+                }
+
+                // Save button (44pt) + spacer (20pt) disappears from 0.66 to 1.0
+                if scrollProgress > 0.66 {
+                    let saveProgress = min((scrollProgress - 0.66) / 0.34, 1.0)
+                    offset += (44 + 20) * saveProgress
+                }
+
+                return offset / 2  // Divide by 2 because we're centering
+            }())
             .padding(.horizontal, 20)
         }
         .transition(.asymmetric(
@@ -457,7 +479,10 @@ struct ContentView: View {
     
     // MARK: - Save Handler
     private func handleSaveButtonTap() {
-        guard authViewModel.signedInUser != nil else { return }
+        guard authViewModel.signedInUser != nil else {
+            isShowingSignIn = true
+            return
+        }
         guard let normalizedURL = webBrowser.urlString.normalizedURL else { return }
 
         // Check if currently saved (for immediate UI feedback)
@@ -475,18 +500,15 @@ struct ContentView: View {
             // TODO: Also need to handle the CloudKit unsave operation
         } else {
             // Not saved and no WebPage exists, need to create and save
-            // Add to saved state immediately for instant UI feedback
+            // Mark as saved immediately to prevent duplicate operations from multiple taps
             webPageViewModel.uiState.savedWebPageStates.insert(normalizedURL)
 
-            // Create webpage in background, it will be properly saved
-            webPageViewModel.createWebPage(for: normalizedURL) { newWebPage in
+            // Create webpage and save it
+            webPageViewModel.createWebPageForSave(for: normalizedURL) { newWebPage in
                 if let webPage = newWebPage {
-                    // The WebPage is created, now properly save it (will handle CloudKit)
-                    // Note: We already added to savedWebPageStates above for instant UI
-                    // This will sync with CloudKit and update counts
-                    if !currentlySaved {
-                        webPageViewModel.toggleSave(on: webPage)
-                    }
+                    // WebPage is created - now perform direct save operation
+                    // Don't use toggleSave since we already updated the state above
+                    webPageViewModel.performDirectSave(on: webPage)
                 }
             }
         }
@@ -1140,8 +1162,94 @@ struct LoadingProgressBar: View {
         .onAppear {
             print("🔄 DEBUG: LoadingProgressBar appeared")
         }
-        .onChange(of: webBrowser.loadingProgress) { progress in
+        .onChange(of: webBrowser.loadingProgress) { _, progress in
             print("🔄 DEBUG: Progress changed to \(progress)")
+        }
+    }
+}
+
+// MARK: - BrowseForward Button
+struct BrowseForwardButton: View {
+    @ObservedObject var webBrowser: WebBrowser
+    @Binding var isShowingBrowseForwardPreferences: Bool
+
+    @State private var rotationAngle: Double = 0
+    @State private var targetRotation: Double = 0
+
+    private var arrowIcon: String {
+        webBrowser.canGoForward ? "arrow.right" : "arrow.up"
+    }
+
+    private var arrowColor: Color {
+        // Use final color based on current state
+        return webBrowser.canGoForward ?
+            (webBrowser.pageBackgroundIsDark ? .white : .black) : .orange
+    }
+
+    var body: some View {
+        Image(systemName: arrowIcon)
+            .foregroundColor(arrowColor)
+            .font(.system(size: 22, weight: webBrowser.canGoForward ? .medium : .bold))
+            .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+            .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+            .rotationEffect(.degrees(rotationAngle))
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                handleTap()
+            }
+            .onLongPressGesture(minimumDuration: 0.5, maximumDistance: .infinity) {
+                handleLongPress()
+            }
+            .onChange(of: webBrowser.canGoForward) { _, newValue in
+                animateRotation(to: newValue)
+            }
+            .onAppear {
+                // Set initial rotation without animation
+                rotationAngle = webBrowser.canGoForward ? 0 : 0
+                targetRotation = rotationAngle
+            }
+    }
+
+    private func handleTap() {
+        if webBrowser.canGoForward {
+            // Standard forward navigation - no haptics
+            webBrowser.goForward()
+        } else {
+            // BrowseForward - vibrate for special action
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            webBrowser.browseForward()
+        }
+    }
+
+    private func handleLongPress() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+
+        if webBrowser.canGoForward {
+            // Jump to last page in forward history
+            webBrowser.jumpToLastForwardPage()
+        } else {
+            // Show preferences
+            isShowingBrowseForwardPreferences = true
+        }
+    }
+
+    private func animateRotation(to canGoForward: Bool) {
+        let newRotation = 0.0
+        targetRotation = newRotation
+
+        if canGoForward {
+            // Rotating to right arrow (standard spring)
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                rotationAngle = newRotation
+            }
+        } else {
+            // Rotating to up arrow (bounce effect for BrowseForward mode)
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                rotationAngle = newRotation
+            }
         }
     }
 }

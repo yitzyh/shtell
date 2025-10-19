@@ -192,17 +192,16 @@ class DynamoDBWebPageService: ObservableObject {
         return try await performQuery(with: params)
     }
     
-    /// Lightweight queue items by category and subcategory with isActive filtering (only 8 fields)
-    func fetchBFQueueItems(category: String?, subcategory: String? = nil, isActiveOnly: Bool = true, limit: Int = 200) async throws -> [BrowseForwardItem] {
+    /// Lightweight queue items by category with isActive filtering (only 8 fields)
+    func fetchBFQueueItems(category: String?, isActiveOnly: Bool = true, limit: Int = 200) async throws -> [BrowseForwardItem] {
         dynamoLog("🏷️ DEBUG fetchBFQueueItems: === STARTING fetchBFQueueItems ===")
         dynamoLog("🏷️ DEBUG fetchBFQueueItems: category: \(category ?? "nil")")
-        dynamoLog("🏷️ DEBUG fetchBFQueueItems: subcategory: \(subcategory ?? "nil")")
         dynamoLog("🏷️ DEBUG fetchBFQueueItems: isActiveOnly: \(isActiveOnly)")
         dynamoLog("🏷️ DEBUG fetchBFQueueItems: limit: \(limit)")
-        
+
         let params = WebPageQueryParams(
             bfCategory: category,
-            bfSubcategory: subcategory,
+            bfSubcategory: nil,  // Subcategories removed
             isActiveOnly: isActiveOnly,
             source: nil,
             tags: nil,
@@ -210,7 +209,7 @@ class DynamoDBWebPageService: ObservableObject {
             sortBy: .popularity,
             lastEvaluatedKey: nil
         )
-        
+
         dynamoLog("🏷️ DEBUG fetchBFQueueItems: About to call performLightweightQuery")
         let result = try await performLightweightQuery(with: params)
         dynamoLog("🏷️ DEBUG fetchBFQueueItems: performLightweightQuery returned \(result.count) items")
@@ -242,35 +241,12 @@ class DynamoDBWebPageService: ObservableObject {
         return categories
     }
     
-    /// Get available subcategories for a specific category
-    func getSubcategories(for category: String) async throws -> [String] {
-        dynamoLog("📂 DEBUG getSubcategories: === STARTING getSubcategories ===")
-        dynamoLog("📂 DEBUG getSubcategories: category: \(category)")
-
-        let params = WebPageQueryParams(
-            bfCategory: category,
-            bfSubcategory: nil,
-            isActiveOnly: true,
-            source: nil,
-            tags: nil,
-            limit: 200, // Get enough to find all subcategories
-            sortBy: .popularity,
-            lastEvaluatedKey: nil
-        )
-
-        let items = try await performQuery(with: params)
-        let subcategories = Set(items.compactMap { $0.bfSubcategory }).sorted()
-
-        dynamoLog("📂 DEBUG getSubcategories: Found \(subcategories.count) subcategories: \(subcategories)")
-        return subcategories
-    }
-
-    /// Efficiently get all categories and their subcategories in a single batch operation
-    func getAllCategoriesAndSubcategories() async throws -> (categories: [String], subcategories: [String: [String]]) {
-        dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: === STARTING BATCH OPERATION ===")
+    /// Get all available categories in a single batch operation
+    func getAllCategories() async throws -> [String] {
+        dynamoLog("📦 DEBUG getAllCategories: === STARTING BATCH OPERATION ===")
 
         do {
-            // Single scan to get all active items with bfCategory/bfSubcategory data
+            // Single scan to get all active items with bfCategory data
             let params = WebPageQueryParams(
                 bfCategory: nil,
                 bfSubcategory: nil,
@@ -283,30 +259,24 @@ class DynamoDBWebPageService: ObservableObject {
             )
 
             let items = try await performQuery(with: params)
-            dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Scanned \(items.count) items")
+            dynamoLog("📦 DEBUG getAllCategories: Scanned \(items.count) items")
 
-            // Extract categories and subcategories efficiently
+            // Extract categories efficiently
             var categories = Set<String>()
-            var subcategoryMap: [String: Set<String>] = [:]
 
             for item in items {
                 // Debug each item
-                dynamoLog("📦 DEBUG item: bfCategory=\(item.bfCategory ?? "nil"), bfSubcategory=\(item.bfSubcategory ?? "nil")")
+                dynamoLog("📦 DEBUG item: bfCategory=\(item.bfCategory ?? "nil")")
 
                 if let category = item.bfCategory {
                     categories.insert(category)
-
-                    if let subcategory = item.bfSubcategory {
-                        subcategoryMap[category, default: Set()].insert(subcategory)
-                    }
                 }
             }
 
             let sortedCategories = Array(categories).sorted()
-            let sortedSubcategories = subcategoryMap.mapValues { Array($0).sorted() }
 
-            dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Found \(sortedCategories.count) categories, \(sortedSubcategories.count) with subcategories")
-            dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Categories: \(sortedCategories)")
+            dynamoLog("📦 DEBUG getAllCategories: Found \(sortedCategories.count) categories")
+            dynamoLog("📦 DEBUG getAllCategories: Categories: \(sortedCategories)")
 
             // If no categories found, this suggests the bfCategory field might not exist or be populated
             if sortedCategories.isEmpty {
@@ -314,15 +284,15 @@ class DynamoDBWebPageService: ObservableObject {
 
                 // Fallback: try to extract from regular category field
                 let fallbackCategories = Set(items.map { $0.category }).sorted()
-                dynamoLog("📦 DEBUG getAllCategoriesAndSubcategories: Fallback using 'category' field: \(fallbackCategories)")
+                dynamoLog("📦 DEBUG getAllCategories: Fallback using 'category' field: \(fallbackCategories)")
 
-                return (categories: fallbackCategories, subcategories: [:])
+                return fallbackCategories
             }
 
-            return (categories: sortedCategories, subcategories: sortedSubcategories)
+            return sortedCategories
 
         } catch {
-            dynamoLog("❌ ERROR in getAllCategoriesAndSubcategories: \(error)")
+            dynamoLog("❌ ERROR in getAllCategories: \(error)")
             throw error
         }
     }
@@ -491,7 +461,6 @@ class DynamoDBWebPageService: ObservableObject {
     private func performLightweightQuery(with params: WebPageQueryParams) async throws -> [BrowseForwardItem] {
         dynamoLog("🚀 DEBUG performLightweightQuery: === STARTING performLightweightQuery ===")
         dynamoLog("🚀 DEBUG performLightweightQuery: params.bfCategory: \(params.bfCategory ?? "nil")")
-        dynamoLog("🚀 DEBUG performLightweightQuery: params.bfSubcategory: \(params.bfSubcategory ?? "nil")")
         dynamoLog("🚀 DEBUG performLightweightQuery: params.isActiveOnly: \(params.isActiveOnly ?? false)")
         dynamoLog("🚀 DEBUG performLightweightQuery: params.limit: \(params.limit)")
         
@@ -591,7 +560,7 @@ class DynamoDBWebPageService: ObservableObject {
         // Build filter expression for additional filters beyond the key conditions
         var filterExpressions: [String] = []
         var scanExpressionAttributeValues: [String: [String: Any]] = [:]
-        var scanExpressionAttributeNames: [String: String] = [:]
+        let scanExpressionAttributeNames: [String: String] = [:]
 
         // For Scan operations, filter by isActive (GSI queries handle this in KeyConditionExpression)
         if query["IndexName"] == nil {
@@ -599,13 +568,6 @@ class DynamoDBWebPageService: ObservableObject {
             scanExpressionAttributeValues[":isActive"] = ["BOOL": true]
         }
         
-        // Filter by bfSubcategory
-        if let bfSubcategory = params.bfSubcategory {
-            filterExpressions.append("#bfSubcategory = :bfSubcategory")
-            scanExpressionAttributeNames["#bfSubcategory"] = "bfSubcategory"
-            scanExpressionAttributeValues[":bfSubcategory"] = ["S": bfSubcategory]
-        }
-
         // Filter by tags (supports both SS and L formats)
         if let tags = params.tags, !tags.isEmpty {
             for (index, tag) in tags.enumerated() {

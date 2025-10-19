@@ -40,7 +40,7 @@ struct UIState {
 }
 
 struct LoadingState {
-    var error: DumFlowError?
+    var error: ShtellError?
     var isLoadingComments = false
     var isLoadingWebPage = false
     var showErrorAlert = false
@@ -218,14 +218,17 @@ class WebPageViewModel: ObservableObject, Identifiable {
     }
     
     func createWebPage(for urlString: String, withFirstComment commentText: String? = nil, parentCommentID: String? = nil, completion: @escaping (WebPage?) -> Void) {
-        
+
+        print("🟢 createWebPage: Called for URL: \(urlString), with comment: \(commentText != nil)")
+
         guard let normalizedURLString = urlString.normalizedURL,
               let _ = URL(string: normalizedURLString) else {
             print("❌ createWebPage: Invalid or failed to normalize urlString: \(urlString)")
             completion(nil)
             return
         }
-        
+        print("✅ createWebPage: Normalized URL: \(normalizedURLString)")
+
         // Create WebPage immediately with basic info, fetch all media asynchronously
         // Tell iOS: "Don't kill this process, I'm doing important work"
         self.createWebPageBackgroundTaskID = UIApplication.shared.beginBackgroundTask { [weak self] in
@@ -237,14 +240,18 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 }
             }
         }
-        
+
+        print("🔄 createWebPage: Starting MediaFetcher for URL: \(normalizedURLString)")
         MediaFetcher.shared.fetchAllMedia(for: normalizedURLString)
             .handleEvents(
                 receiveSubscription: { _ in
+                    print("📡 createWebPage: MediaFetcher subscription started")
                 },
                 receiveOutput: { media in
+                    print("📦 createWebPage: MediaFetcher received output with title: '\(media.title ?? "nil")'")
                 },
                 receiveCompletion: { completion in
+                    print("🏁 createWebPage: MediaFetcher completion: \(completion)")
                 },
                 receiveCancel: {
                     print("❌ createWebPage: Combine chain was CANCELLED")
@@ -254,13 +261,19 @@ class WebPageViewModel: ObservableObject, Identifiable {
             .sink { [weak self] (media: WebPageMedia) in
                 print("🔄 createWebPage: Sink callback received media: title='\(media.title ?? "nil")')")
                 guard let self = self else { return }
-                
-                let title = media.title ?? "No Title"
-                
+
+                // Set title - use custom title for shtell:// URLs
+                let title: String
+                if normalizedURLString.hasPrefix("shtell://") {
+                    title = "Shtell - The comment section for the internet"
+                } else {
+                    title = media.title ?? "No Title"
+                }
+
                 // Create WebPage record with title and media
                 let recordID = CKRecord.ID(recordName: normalizedURLString)
                 let record = CKRecord(recordType: "WebPage", recordID: recordID)
-                
+
                 record["dateCreated"] = Date() as NSDate
                 record["urlString"] = normalizedURLString as NSString
                 record["title"] = title as NSString
@@ -269,16 +282,33 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 record["saveCount"] = 0 as NSNumber
                 record["isReported"] = 0 as NSNumber
                 record["reportCount"] = 0 as NSNumber
-                record["domain"] = (URL(string: normalizedURLString)?.host ?? "") as NSString
-                
+                // Extract domain - handle custom shtell:// URLs
+                let domain: String
+                if normalizedURLString.hasPrefix("shtell://") {
+                    domain = "shtell"
+                } else {
+                    domain = URL(string: normalizedURLString)?.host ?? ""
+                }
+                record["domain"] = domain as NSString
+
                 // Add media if available
-                if let faviconData = media.faviconData {
-                    record["faviconData"] = faviconData as NSData
+                // For shtell:// URLs, use app icon
+                if normalizedURLString.hasPrefix("shtell://") {
+                    if let appIconData = self.getAppIconData() {
+                        record["faviconData"] = appIconData as NSData
+                        if let thumbnailData = self.safetyCompressImageData(appIconData, maxSize: 15_000) {
+                            record["thumbnailData"] = thumbnailData as NSData
+                        }
+                    }
+                } else {
+                    if let faviconData = media.faviconData {
+                        record["faviconData"] = faviconData as NSData
+                    }
+                    if let thumbnailData = self.safetyCompressImageData(media.thumbnailData, maxSize: 15_000) {
+                        record["thumbnailData"] = thumbnailData as NSData
+                    }
                 }
-                if let thumbnailData = self.safetyCompressImageData(media.thumbnailData, maxSize: 15_000) {
-                    record["thumbnailData"] = thumbnailData as NSData
-                }
-                
+
                 // Save webpage, and optionally the first comment
                 if let commentText = commentText {
                     print("🟡 createWebPage: Saving webpage WITH comment: '\(commentText)'")
@@ -288,7 +318,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                         completion(nil)
                         return
                     }
-                    
+
                     let commentID = UUID().uuidString
                     let commentRecord = CKRecord(recordType: "Comment", recordID: CKRecord.ID(recordName: commentID))
                     commentRecord["text"] = commentText as NSString
@@ -300,12 +330,12 @@ class WebPageViewModel: ObservableObject, Identifiable {
                     if let parentCommentID = parentCommentID {
                         commentRecord["parentCommentID"] = parentCommentID as NSString
                     }
-                    
+
                     // Update webpage comment count
                     let currentCount = record["commentCount"] as? Int ?? 0
                     let newCount = parentCommentID == nil ? currentCount + 1 : currentCount
                     record["commentCount"] = newCount as NSNumber
-                    
+
                     // Create comment for immediate UI update
                     let newComment = Comment(
                         id: CKRecord.ID(recordName: commentID),
@@ -321,7 +351,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                         isReported: 0,
                         reportCount: 0
                     )
-                    
+
                     // Insert comment immediately for smooth UI
                     print("🟢 createWebPage: Adding comment to UI immediately")
                     DispatchQueue.main.async {
@@ -331,7 +361,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                         // Ensure loading state is false so "No comments yet" disappears immediately
                         self.loadingState.isLoadingComments = false
                     }
-                    
+
                     // Batch save webpage and comment
                     print("🔄 createWebPage: Starting CloudKit batch save (webpage + comment)")
                     let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, commentRecord], recordIDsToDelete: nil)
@@ -341,13 +371,13 @@ class WebPageViewModel: ObservableObject, Identifiable {
                         switch result {
                         case .failure(let error):
                             print("❌ createWebPage: CloudKit batch save FAILED: \(error)")
-                            
+
                             // Handle CloudKit "Zone Busy" errors with automatic retry
                             if let ckError = error as? CKError,
                                ckError.code == .zoneBusy || ckError.code == .serviceUnavailable {
                                 let retryAfter = ckError.retryAfterSeconds ?? 2.0
                                 print("🔄 createWebPage: CloudKit zone busy, retrying after \(retryAfter) seconds")
-                                
+
                                 DispatchQueue.main.asyncAfter(deadline: .now() + retryAfter) {
                                     // Create a new operation for retry
                                     let retryOp = CKModifyRecordsOperation(recordsToSave: modifyOp.recordsToSave, recordIDsToDelete: modifyOp.recordIDsToDelete)
@@ -357,7 +387,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                                 }
                                 return
                             }
-                            
+
                             print("❌ createWebPage: Calling completion(nil) due to CloudKit error")
                             completion(nil)
                         case .success:
@@ -372,17 +402,20 @@ class WebPageViewModel: ObservableObject, Identifiable {
                     self.publicDatabase.add(modifyOp)
                 } else {
                     // Save webpage only (existing behavior)
+                    print("🔄 createWebPage: Starting CloudKit save (webpage only) for URL: \(normalizedURLString)")
                     self.publicDatabase.save(record) { [weak self] savedRecord, error in
                         if let error = error {
-                            print("Error creating WebPage record: \(error)")
+                            print("❌ createWebPage: Error creating WebPage record: \(error)")
                             completion(nil)
                             return
                         }
                         guard let saved = savedRecord else {
+                            print("❌ createWebPage: No saved record returned from CloudKit")
                             completion(nil)
                             return
                         }
-                        
+                        print("✅ createWebPage: Successfully saved webpage to CloudKit")
+
                         Task { @MainActor in
                             guard let self = self else { return }
                             let newWebPage = self.makeWebPage(from: saved)
@@ -390,7 +423,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                         }
                     }
                 }
-                
+
                 // Tell iOS: "I'm done with my important work, you can manage my process normally again"
                 if self.createWebPageBackgroundTaskID != .invalid {
                     UIApplication.shared.endBackgroundTask(self.createWebPageBackgroundTaskID)
@@ -398,6 +431,122 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    /// Creates a WebPage for save operations with full media (title, favicon, thumbnail)
+    /// Fetches media before creating the record to ensure saved items have complete metadata
+    func createWebPageForSave(for urlString: String, completion: @escaping (WebPage?) -> Void) {
+        print("🟢 createWebPageForSave: Called for URL: \(urlString)")
+
+        guard let normalizedURLString = urlString.normalizedURL,
+              let _ = URL(string: normalizedURLString) else {
+            print("❌ createWebPageForSave: Invalid or failed to normalize urlString: \(urlString)")
+            completion(nil)
+            return
+        }
+        print("✅ createWebPageForSave: Normalized URL: \(normalizedURLString)")
+
+        // Fetch media first to ensure saved item has proper metadata
+        print("🔄 createWebPageForSave: Fetching media for URL: \(normalizedURLString)")
+        MediaFetcher.shared.fetchAllMedia(for: normalizedURLString)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] (media: WebPageMedia) in
+                guard let self = self else { return }
+
+                print("🔄 createWebPageForSave: Media fetched, creating record")
+
+                // Create WebPage record with media
+                let recordID = CKRecord.ID(recordName: normalizedURLString)
+                let record = CKRecord(recordType: "WebPage", recordID: recordID)
+
+                // Set title - use custom title for shtell:// URLs
+                let title: String
+                if normalizedURLString.hasPrefix("shtell://") {
+                    title = "Shtell - The comment section for the internet"
+                } else {
+                    title = media.title ?? self.extractQuickTitle(from: normalizedURLString)
+                }
+
+                record["dateCreated"] = Date() as NSDate
+                record["urlString"] = normalizedURLString as NSString
+                record["title"] = title as NSString
+                record["commentCount"] = 0 as NSNumber
+                record["likeCount"] = 0 as NSNumber
+                record["saveCount"] = 0 as NSNumber
+                record["isReported"] = 0 as NSNumber
+                record["reportCount"] = 0 as NSNumber
+                // Extract domain - handle custom shtell:// URLs
+                let domain: String
+                if normalizedURLString.hasPrefix("shtell://") {
+                    domain = "shtell"
+                } else {
+                    domain = URL(string: normalizedURLString)?.host ?? ""
+                }
+                record["domain"] = domain as NSString
+
+                // Add media if available
+                // For shtell:// URLs, use app icon
+                if normalizedURLString.hasPrefix("shtell://") {
+                    if let appIconData = self.getAppIconData() {
+                        record["faviconData"] = appIconData as NSData
+                        if let thumbnailData = self.safetyCompressImageData(appIconData, maxSize: 15_000) {
+                            record["thumbnailData"] = thumbnailData as NSData
+                        }
+                    }
+                } else {
+                    if let faviconData = media.faviconData {
+                        record["faviconData"] = faviconData as NSData
+                    }
+                    if let thumbnailData = self.safetyCompressImageData(media.thumbnailData, maxSize: 15_000) {
+                        record["thumbnailData"] = thumbnailData as NSData
+                    }
+                }
+
+                // Save to CloudKit
+                print("🔄 createWebPageForSave: Saving to CloudKit with media")
+                self.publicDatabase.save(record) { savedRecord, error in
+                    if let error = error {
+                        print("❌ createWebPageForSave: Error creating WebPage record: \(error)")
+                        DispatchQueue.main.async {
+                            completion(nil)
+                        }
+                        return
+                    }
+
+                    guard let saved = savedRecord else {
+                        print("❌ createWebPageForSave: No saved record returned from CloudKit")
+                        DispatchQueue.main.async {
+                            completion(nil)
+                        }
+                        return
+                    }
+
+                    print("✅ createWebPageForSave: Successfully saved webpage with media to CloudKit")
+
+                    // Update local state and call completion on main thread
+                    Task { @MainActor in
+                        let newWebPage = self.makeWebPage(from: saved)
+                        self.contentState.webPage = newWebPage
+                        completion(newWebPage)
+                    }
+                }
+            }
+            .store(in: &self.cancellables)
+    }
+
+    /// Extract a smart title from URL while media loads (from CommentService)
+    private func extractQuickTitle(from urlString: String) -> String {
+        guard let url = URL(string: urlString),
+              let host = url.host else {
+            return "New Page"
+        }
+
+        // Remove common prefixes and capitalize
+        let cleanHost = host
+            .replacingOccurrences(of: "www.", with: "")
+            .replacingOccurrences(of: "m.", with: "")
+
+        return cleanHost.capitalized
     }
     
     // Light safety compression for CloudKit (images already optimized during fetch)
@@ -578,7 +727,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
         }
         // Ensure we have a URL
         guard let currentURL = self.urlString, !currentURL.isEmpty else {
-            loadingState.error = .invalidURL
+            loadingState.error = ShtellError.invalidURL
             loadingState.showErrorAlert = true
             return
         }
@@ -621,7 +770,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 } catch {
                     await MainActor.run {
                         print("❌ addComment: CommentService failed: \(error)")
-                        self.loadingState.error = .loadingFailed
+                        self.loadingState.error = ShtellError.loadingFailed
                         self.loadingState.showErrorAlert = true
                     }
                 }
@@ -743,7 +892,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
             } catch {
                 await MainActor.run {
                     print("❌ Error posting comment: \(error)")
-                    self.loadingState.error = .commentPostFailed
+                    self.loadingState.error = ShtellError.commentPostFailed
                     self.loadingState.showErrorAlert = true
                 }
             }
@@ -814,10 +963,12 @@ class WebPageViewModel: ObservableObject, Identifiable {
             completion?()
             return
         }
-        
+
+        // Capture the state BEFORE any updates
+        let wasAlreadySaved = hasSaved(webPage)
+
         // Simple immediate UI update
-        let currentlySaved = hasSaved(webPage)
-        if currentlySaved {
+        if wasAlreadySaved {
             // Unsave: Update state and count immediately
             uiState.savedWebPageStates.remove(webPage.urlString)
             contentState.savedWebPages.removeAll { $0.urlString == webPage.urlString }
@@ -825,20 +976,17 @@ class WebPageViewModel: ObservableObject, Identifiable {
             uiState.webPageSaveCounts[webPage.urlString] = max(0, (uiState.webPageSaveCounts[webPage.urlString] ?? webPage.saveCount) - 1)
             print("📚 Unsave: Removed save state for \(webPage.urlString)")
         } else {
-            // Save: Update count and state immediately
+            // Save: Update count and state immediately (but don't add to savedWebPages yet - wait for actual webpage)
             uiState.webPageSaveCounts[webPage.urlString] = (uiState.webPageSaveCounts[webPage.urlString] ?? webPage.saveCount) + 1
             uiState.savedWebPageStates.insert(webPage.urlString)
-            if !contentState.savedWebPages.contains(where: { $0.urlString == webPage.urlString }) {
-                contentState.savedWebPages.append(webPage)
-                contentState.webPageSaveDates[webPage.urlString] = Date()
-            }
+            // Don't add webpage to saved list yet - will be added when we get the actual webpage from CloudKit
             print("💾 Save: Updated save count for \(webPage.urlString)")
         }
-        
+
         // Call completion immediately for fast UI response
         completion?()
-        
-        if currentlySaved {
+
+        if wasAlreadySaved {
             // Unsave: Delete WebPageSave record by direct access
             let saveRecordName = "websave_\(user.userID)_\(webPage.urlString)"
             let recordID = CKRecord.ID(recordName: saveRecordName)
@@ -901,45 +1049,46 @@ class WebPageViewModel: ObservableObject, Identifiable {
             // Save: Create new WebPageSave record
             let webPageSave = WebPageSave(urlString: webPage.urlString, userID: user.userID)
             let record = webPageSave.toRecord()
-            
+
             // Save record and update WebPage saveCount
             let pageRecordID = CKRecord.ID(recordName: webPage.urlString)
             publicDatabase.fetch(withRecordID: pageRecordID) { [weak self] fetchedPageRecord, error in
-                guard let self = self,
-                      let pageRecord = fetchedPageRecord,
-                      error == nil else {
-                    print("Error fetching WebPage for save: \(String(describing: error))")
-                    return
-                }
-                
-                // Increment saveCount
-                let newCount = (pageRecord["saveCount"] as? Int ?? 0) + 1
-                pageRecord["saveCount"] = newCount as NSNumber
-                
-                // Batch operation: save record and update page record
-                let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, pageRecord], recordIDsToDelete: nil)
-                modifyOp.savePolicy = .allKeys
-                modifyOp.modifyRecordsResultBlock = { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .failure(let error):
-                            print("❌ Error batch save operation: \(error)")
-                            // Revert all state on failure
-                            self.uiState.webPageSaveCounts[webPage.urlString] = webPage.saveCount
-                            self.uiState.savedWebPageStates.remove(webPage.urlString)
-                            self.contentState.savedWebPages.removeAll { $0.urlString == webPage.urlString }
-                            self.contentState.webPageSaveDates.removeValue(forKey: webPage.urlString)
-                        case .success:
-                            print("✅ Successfully saved webpage and updated count")
-                            // Don't overwrite local cache - trust user's actions
-                            // self.webPageSaveCounts[webPage.urlString] = newCount
-                            // Update local arrays
-                            if !self.contentState.savedWebPages.contains(where: { $0.urlString == webPage.urlString }) {
-                                self.contentState.savedWebPages.append(webPage)
-                                self.contentState.webPageSaveDates[webPage.urlString] = Date()
-                            }
-                            // Update allWebPages array
-                            if let index = self.contentState.webPages.firstIndex(where: { $0.urlString == webPage.urlString }) {
+                guard let self = self else { return }
+
+                if let pageRecord = fetchedPageRecord, error == nil {
+                    // WebPage exists - increment saveCount
+                    let newCount = (pageRecord["saveCount"] as? Int ?? 0) + 1
+                    pageRecord["saveCount"] = newCount as NSNumber
+
+                    // Batch operation: save record and update page record
+                    let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, pageRecord], recordIDsToDelete: nil)
+                    modifyOp.savePolicy = .allKeys
+                    modifyOp.modifyRecordsResultBlock = { result in
+                        DispatchQueue.main.async {
+                            switch result {
+                            case .failure(let error):
+                                print("❌ Error batch save operation: \(error)")
+                                // Revert all state on failure
+                                self.uiState.webPageSaveCounts[webPage.urlString] = webPage.saveCount
+                                self.uiState.savedWebPageStates.remove(webPage.urlString)
+                                self.contentState.savedWebPages.removeAll { $0.urlString == webPage.urlString }
+                                self.contentState.webPageSaveDates.removeValue(forKey: webPage.urlString)
+                            case .success:
+                                print("✅ Successfully saved webpage and updated count")
+                                // Fetch the updated webpage with proper data
+                                self.fetchExistingWebPage(for: webPage.urlString) { updatedWebPage in
+                                    DispatchQueue.main.async {
+                                        if let updated = updatedWebPage {
+                                            // Update local arrays with the fetched webpage that has proper data
+                                            if !self.contentState.savedWebPages.contains(where: { $0.urlString == updated.urlString }) {
+                                                self.contentState.savedWebPages.append(updated)
+                                                self.contentState.webPageSaveDates[updated.urlString] = Date()
+                                            }
+                                        }
+                                    }
+                                }
+                                // Update allWebPages array
+                                if let index = self.contentState.webPages.firstIndex(where: { $0.urlString == webPage.urlString }) {
                                 self.contentState.webPages[index] = WebPage(
                                     id: self.contentState.webPages[index].id,
                                     urlString: self.contentState.webPages[index].urlString,
@@ -959,10 +1108,152 @@ class WebPageViewModel: ObservableObject, Identifiable {
                     }
                 }
                 self.publicDatabase.add(modifyOp)
+                } else {
+                    // WebPage doesn't exist - create it first, then save
+                    print("📝 WebPage doesn't exist, creating it first for save")
+                    Task { @MainActor in
+                        self.createWebPageForSave(for: webPage.urlString) { createdWebPage in
+                        guard createdWebPage != nil else {
+                            print("❌ Failed to create webpage for save")
+                            // Revert UI state since we couldn't create the webpage
+                            DispatchQueue.main.async {
+                                self.uiState.webPageSaveCounts[webPage.urlString] = webPage.saveCount
+                                self.uiState.savedWebPageStates.remove(webPage.urlString)
+                                self.contentState.savedWebPages.removeAll { $0.urlString == webPage.urlString }
+                                self.contentState.webPageSaveDates.removeValue(forKey: webPage.urlString)
+                            }
+                            return
+                        }
+
+                        // Now save the WebPageSave record and update the newly created webpage's saveCount
+                        self.publicDatabase.fetch(withRecordID: pageRecordID) { fetchedPageRecord, error in
+                            guard let pageRecord = fetchedPageRecord else {
+                                print("❌ Failed to fetch newly created webpage")
+                                return
+                            }
+
+                            // Set saveCount to 1 for the new webpage
+                            pageRecord["saveCount"] = 1 as NSNumber
+
+                            // Batch operation: save record and update page record
+                            let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, pageRecord], recordIDsToDelete: nil)
+                            modifyOp.savePolicy = .allKeys
+                            modifyOp.modifyRecordsResultBlock = { result in
+                                DispatchQueue.main.async {
+                                    switch result {
+                                    case .failure(let error):
+                                        print("❌ Error saving after webpage creation: \(error)")
+                                        // Revert all state on failure
+                                        self.uiState.webPageSaveCounts[webPage.urlString] = webPage.saveCount
+                                        self.uiState.savedWebPageStates.remove(webPage.urlString)
+                                        self.contentState.savedWebPages.removeAll { $0.urlString == webPage.urlString }
+                                        self.contentState.webPageSaveDates.removeValue(forKey: webPage.urlString)
+                                    case .success:
+                                        print("✅ Successfully created webpage and saved it")
+                                        // Update local arrays with the newly created webpage
+                                        if let newWebPage = createdWebPage {
+                                            if !self.contentState.savedWebPages.contains(where: { $0.urlString == newWebPage.urlString }) {
+                                                self.contentState.savedWebPages.append(newWebPage)
+                                                self.contentState.webPageSaveDates[newWebPage.urlString] = Date()
+                                            }
+                                            // Add to allWebPages if not already there
+                                            if !self.contentState.webPages.contains(where: { $0.urlString == newWebPage.urlString }) {
+                                                self.contentState.webPages.append(newWebPage)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            self.publicDatabase.add(modifyOp)
+                        }
+                        }
+                    }
+                }
             }
         }
     }
-    
+
+    /// Performs a direct save operation without toggling state
+    /// Used when state is already updated (e.g., during initial save from save button)
+    func performDirectSave(on webPage: WebPage) {
+        guard let user = authViewModel.signedInUser else { return }
+
+        print("💾 performDirectSave: Saving webpage \(webPage.urlString)")
+
+        // Create WebPageSave record
+        let webPageSave = WebPageSave(urlString: webPage.urlString, userID: user.userID)
+        let record = webPageSave.toRecord()
+
+        // Update WebPage saveCount
+        let pageRecordID = CKRecord.ID(recordName: webPage.urlString)
+        publicDatabase.fetch(withRecordID: pageRecordID) { [weak self] fetchedPageRecord, error in
+            guard let self = self else { return }
+
+            guard let pageRecord = fetchedPageRecord, error == nil else {
+                print("❌ performDirectSave: Failed to fetch webpage: \(String(describing: error))")
+                return
+            }
+
+            // Increment saveCount
+            let newCount = (pageRecord["saveCount"] as? Int ?? 0) + 1
+            pageRecord["saveCount"] = newCount as NSNumber
+
+            // Update local count immediately
+            DispatchQueue.main.async {
+                self.uiState.webPageSaveCounts[webPage.urlString] = newCount
+            }
+
+            // Batch operation: save record and update page record
+            let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, pageRecord], recordIDsToDelete: nil)
+            modifyOp.savePolicy = .allKeys
+            modifyOp.modifyRecordsResultBlock = { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .failure(let error):
+                        print("❌ performDirectSave: Error saving: \(error)")
+                        // Revert state on failure
+                        self.uiState.webPageSaveCounts[webPage.urlString] = webPage.saveCount
+                        self.uiState.savedWebPageStates.remove(webPage.urlString)
+                        self.contentState.savedWebPages.removeAll { $0.urlString == webPage.urlString }
+                        self.contentState.webPageSaveDates.removeValue(forKey: webPage.urlString)
+                    case .success:
+                        print("✅ performDirectSave: Successfully saved webpage")
+                        // Fetch the updated webpage with proper metadata before adding to savedWebPages
+                        self.fetchExistingWebPage(for: webPage.urlString) { updatedWebPage in
+                            DispatchQueue.main.async {
+                                if let updated = updatedWebPage {
+                                    // Add to saved webpages array with full metadata
+                                    if !self.contentState.savedWebPages.contains(where: { $0.urlString == updated.urlString }) {
+                                        self.contentState.savedWebPages.append(updated)
+                                        self.contentState.webPageSaveDates[updated.urlString] = Date()
+                                    }
+                                }
+                            }
+                        }
+                        // Update allWebPages array
+                        if let index = self.contentState.webPages.firstIndex(where: { $0.urlString == webPage.urlString }) {
+                            self.contentState.webPages[index] = WebPage(
+                                id: self.contentState.webPages[index].id,
+                                urlString: self.contentState.webPages[index].urlString,
+                                title: self.contentState.webPages[index].title,
+                                domain: self.contentState.webPages[index].domain,
+                                dateCreated: self.contentState.webPages[index].dateCreated,
+                                commentCount: self.contentState.webPages[index].commentCount,
+                                likeCount: self.contentState.webPages[index].likeCount,
+                                saveCount: newCount,
+                                isReported: self.contentState.webPages[index].isReported,
+                                reportCount: self.contentState.webPages[index].reportCount,
+                                faviconData: self.contentState.webPages[index].faviconData,
+                                thumbnailData: self.contentState.webPages[index].thumbnailData
+                            )
+                        }
+                    }
+                }
+            }
+            self.publicDatabase.add(modifyOp)
+        }
+    }
+
     func hasSaved(_ webPage: WebPage) -> Bool {
         return uiState.savedWebPageStates.contains(webPage.urlString)
     }
@@ -1763,7 +2054,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
     func removeComment(_ comment: Comment) {
         guard let user = authViewModel.signedInUser else { return }
         
-        // Check if user owns this comment
+        // Check if u-ser owns this comment
         guard comment.userID == user.userID else { return }
         
         // Remove from CloudKit
@@ -1772,7 +2063,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
             
             if error != nil {
                 DispatchQueue.main.async {
-                    self.loadingState.error = .commentPostFailed
+                    self.loadingState.error = ShtellError.commentPostFailed
                     self.loadingState.showErrorAlert = true
                 }
                 return
@@ -1964,5 +2255,23 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 }
             }
         }
+    }
+
+    // MARK: - Helper Functions
+
+    private func getAppIconData() -> Data? {
+        // Try to get the app icon from the asset catalog
+        guard let appIcon = UIImage(named: "AppIcon") else {
+            // Fallback: try to get icon from bundle
+            if let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any],
+               let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
+               let iconFiles = primaryIcon["CFBundleIconFiles"] as? [String],
+               let lastIcon = iconFiles.last,
+               let iconImage = UIImage(named: lastIcon) {
+                return iconImage.pngData()
+            }
+            return nil
+        }
+        return appIcon.pngData()
     }
 }
