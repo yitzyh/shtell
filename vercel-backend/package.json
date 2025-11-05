@@ -1,0 +1,15 @@
+{
+  "name": "shtell-browseforward-api",
+  "version": "1.0.0",
+  "description": "Backend proxy for Shtell BrowseForward feature",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1489.0"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}

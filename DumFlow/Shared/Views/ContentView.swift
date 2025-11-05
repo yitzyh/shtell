@@ -68,10 +68,12 @@ struct ContentView: View {
                 }
                 
                 // Card list overlay - always present but hidden when not needed
-                VStack {
+                VStack(spacing: 0) {
+                    // Minimal top spacing when search focused
                     Spacer()
-                        .frame(height: 100) // Space for top toolbar
-                    
+                        .frame(height: 80)
+
+                    // WebPage cards at top
                     WebPageCardListView(
                         commentsUrlString: .constant(nil)
                     ) { urlString in
@@ -79,6 +81,35 @@ struct ContentView: View {
                         searchIsFocused = false
                         normalizeAndLoads(urlString)
                     }
+                    .environmentObject(webBrowser)
+                    .environmentObject(browseForwardViewModel)
+                    .environmentObject(webPageViewModel)
+                    .frame(height: 180)
+                    .padding(.bottom, 12)
+
+                    // Search Bangs
+                    SearchBangsView(searchText: searchBarText) { selectedBang in
+                        // Check if searchBarText is a URL or a search query
+                        let isURL = searchBarText.hasPrefix("http://") ||
+                                   searchBarText.hasPrefix("https://") ||
+                                   (searchBarText.contains(".") && !searchBarText.contains(" "))
+
+                        let finalURL: String
+                        if isURL {
+                            // If it's a URL, just go to the bang's homepage
+                            finalURL = selectedBang.homepage
+                        } else {
+                            // If it's a search query, search on that site
+                            let query = searchBarText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchBarText
+                            finalURL = selectedBang.searchPrefix + query
+                        }
+
+                        webBrowser.urlString = finalURL
+                        webBrowser.isUserInitiatedNavigation = true
+                        searchBarText = finalURL
+                        searchIsFocused = false
+                    }
+                    .padding(.bottom, 8)
 
                     Spacer()
                 }
@@ -109,7 +140,6 @@ struct ContentView: View {
                         }
                     )
                     // Removed intercepting tap gesture that blocked focus
-                    
 
                     Spacer()
                     
@@ -188,7 +218,7 @@ struct ContentView: View {
                 .presentationContentInteraction(.resizes)
         }
         .sheet(isPresented: $isShowingHistory) {
-            HistoryView(historyService: webPageViewModel.browserHistoryService)
+            HistoryView(historyService: BrowserHistoryService(authViewModel: authViewModel))
                 .environmentObject(webPageViewModel)
                 .environmentObject(authViewModel)
                 .environmentObject(webBrowser)
@@ -374,7 +404,7 @@ struct ContentView: View {
                         Group {
                             if #available(iOS 26.0, *) {
                                 RoundedRectangle(cornerRadius: 22)
-                                    .glassEffect(.regular)
+                                    .glassEffect(.clear)
                             } else {
                                 RoundedRectangle(cornerRadius: 22)
                                     .fill(.ultraThinMaterial)
@@ -588,11 +618,11 @@ struct FullToolbar: View {
             ZStack {
                 if #available(iOS 26.0, *) {
                     Circle()
-                        .glassEffect(.regular)
+                        .glassEffect(.clear)
                         .frame(width: 44, height: 44)
                 } else {
                     Circle()
-                        .fill(.thinMaterial)
+                        .fill(.ultraThinMaterial)
                         .frame(width: 44, height: 44)
                 }
 
@@ -634,6 +664,8 @@ struct FullToolbar: View {
                 )
             }
         }
+        .frame(height: 44)
+        .frame(maxWidth: searchIsFocused ? .infinity : max(140, 400 - (scrollProgress * 260)))
         .background(SearchBarBackground())
         .overlay(SearchBarBorder(searchIsFocused: searchIsFocused, colorScheme: colorScheme))
         .overlay(
@@ -671,14 +703,14 @@ struct FullToolbar: View {
                     ZStack {
                         if #available(iOS 26.0, *) {
                             Circle()
-                                .glassEffect(.regular)
+                                .glassEffect(.clear)
                                 .frame(width: 44, height: 44)
                         } else {
                             Circle()
-                                .fill(.thinMaterial)
+                                .fill(.ultraThinMaterial)
                                 .frame(width: 44, height: 44)
                         }
-                        
+
                         Image(systemName: "xmark")
                             .font(.system(size: 22, weight: .medium))
                             .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
@@ -693,11 +725,11 @@ struct FullToolbar: View {
                     ZStack {
                         if #available(iOS 26.0, *) {
                             Circle()
-                                .glassEffect(.regular)
+                                .glassEffect(.clear)
                                 .frame(width: 44, height: 44)
                         } else {
                             Circle()
-                                .fill(.thinMaterial)
+                                .fill(.ultraThinMaterial)
                                 .frame(width: 44, height: 44)
                         }
 
@@ -968,7 +1000,11 @@ struct SearchTextFieldView: View {
         HStack(spacing: 0) {
             Spacer().frame(width: 15)
 
-            TextField("Search or enter website name", text: $searchBarText)
+            TextField(
+                "Search or enter website name",
+                text: $searchBarText,
+                prompt: Text("Search or enter website name").foregroundColor(.gray)
+            )
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
@@ -994,7 +1030,7 @@ struct SearchTextFieldView: View {
 
             Spacer().frame(width: 15)
         }
-        .frame(height: 36)
+        .frame(height: 44)
         .opacity(searchIsFocused.wrappedValue ? 1 : 0)
     }
 }
@@ -1060,8 +1096,8 @@ struct URLTextView: View {
                     }
                 }
             }
-            .padding(.horizontal, max(2, 44 - (scrollProgress * 42)))
-            .padding(.vertical, max(2, 12 - (scrollProgress * 10)))
+            .padding(.horizontal, max(0, 44 - (scrollProgress * 44)))
+            .padding(.vertical, max(0, 12 - (scrollProgress * 12)))
     }
 }
 
@@ -1125,9 +1161,9 @@ struct SearchBarBackground: View {
     var body: some View {
         Group {
             if #available(iOS 26.0, *) {
-                Capsule().glassEffect(.regular)
+                Capsule().glassEffect(.clear)
             } else {
-                Capsule().fill(.thinMaterial)
+                Capsule().fill(.ultraThinMaterial)
             }
         }
     }
@@ -1165,6 +1201,159 @@ struct LoadingProgressBar: View {
         .onChange(of: webBrowser.loadingProgress) { _, progress in
             print("🔄 DEBUG: Progress changed to \(progress)")
         }
+    }
+}
+
+// MARK: - BrowseForward Category Selector
+struct BrowseForwardCategorySelector: View {
+    @EnvironmentObject private var browseForwardViewModel: BrowseForwardViewModel
+    @EnvironmentObject private var webBrowser: WebBrowser
+    @AppStorage("BrowseForwardPreferences") private var preferencesData: Data = Data()
+
+    @State private var selectedCategories: Set<String> = []
+    @State private var availableCategories: [String] = []
+    @State private var isLoadingCategories = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if isLoadingCategories {
+                ProgressView("Loading categories...")
+                    .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
+                    .frame(height: 80)
+            } else if !availableCategories.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 8) {
+                        ForEach(availableCategories.sorted(), id: \.self) { category in
+                            LiquidGlassCategoryButton(
+                                title: category,
+                                isSelected: selectedCategories.contains(category),
+                                pageBackgroundIsDark: webBrowser.pageBackgroundIsDark
+                            ) {
+                                toggleCategory(category)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .frame(height: 60)
+            }
+        }
+        .onAppear {
+            loadPreferences()
+            loadCategories()
+
+            // Initialize browse queue if empty
+            if browseForwardViewModel.browseQueue.isEmpty {
+                Task {
+                    await browseForwardViewModel.refreshWithPreferences(
+                        selectedCategories: Array(selectedCategories)
+                    )
+                }
+            }
+        }
+    }
+
+    private func toggleCategory(_ category: String) {
+        if selectedCategories.contains(category) {
+            selectedCategories.remove(category)
+        } else {
+            selectedCategories.insert(category)
+        }
+
+        savePreferences()
+
+        // Auto-refresh content when category changes
+        Task {
+            await browseForwardViewModel.refreshWithPreferences(
+                selectedCategories: Array(selectedCategories)
+            )
+        }
+    }
+
+    private func loadCategories() {
+        Task { @MainActor in
+            isLoadingCategories = true
+
+            do {
+                availableCategories = try await BrowseForwardAPIService.shared.getAvailableCategories()
+            } catch {
+                print("❌ Failed to load categories: \(error)")
+                availableCategories = []
+            }
+
+            isLoadingCategories = false
+        }
+    }
+
+    private func loadPreferences() {
+        if let preferences = try? JSONDecoder().decode(BrowseForwardPreferences.self, from: preferencesData) {
+            selectedCategories = preferences.selectedCategories
+        }
+    }
+
+    private func savePreferences() {
+        let preferences = BrowseForwardPreferences(
+            selectedCategories: selectedCategories,
+            lastUpdated: Date()
+        )
+        if let data = try? JSONEncoder().encode(preferences) {
+            preferencesData = data
+            NotificationCenter.default.post(name: Notification.Name("BrowseForwardPreferencesChanged"), object: nil)
+        }
+    }
+}
+
+// MARK: - Liquid Glass Category Button (Pill Style)
+struct LiquidGlassCategoryButton: View {
+    let title: String
+    let isSelected: Bool
+    let pageBackgroundIsDark: Bool
+    let action: () -> Void
+
+    // Display friendly name for categories
+    private var displayTitle: String {
+        title == "webgames" ? "games" : title
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(displayTitle)
+                .font(.footnote)
+                .fontWeight(isSelected ? .semibold : .medium)
+                .foregroundColor(pageBackgroundIsDark ? .white : .black)
+                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+                .frame(minWidth: 60)
+                .frame(height: 55)
+                .padding(.horizontal, 16)
+                .background(
+                    ZStack {
+                        // Base contrast layer for readability (more transparent)
+                        Capsule()
+                            .fill(pageBackgroundIsDark ? .black.opacity(0.25) : .white.opacity(0.35))
+
+                        // Glass effect on top
+                        Group {
+                            if #available(iOS 26.0, *) {
+                                Capsule()
+                                    .fill(.clear)
+                                    .glassEffect(.clear, in: Capsule())
+                            } else {
+                                Capsule()
+                                    .fill(.ultraThinMaterial)
+                            }
+                        }
+
+                        // Brighter fill when selected
+                        if isSelected {
+                            Capsule()
+                                .fill(pageBackgroundIsDark ? .white.opacity(0.2) : .black.opacity(0.15))
+                        }
+                    }
+                )
+        }
+        .buttonStyle(.plain)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
     }
 }
 
@@ -1251,6 +1440,108 @@ struct BrowseForwardButton: View {
                 rotationAngle = newRotation
             }
         }
+    }
+}
+
+// MARK: - Search Bangs
+struct SearchBang: Identifiable {
+    let id = UUID()
+    let name: String
+    let faviconURL: String
+    let searchPrefix: String
+    let homepage: String
+}
+
+struct SearchBangsView: View {
+    let searchText: String
+    let onBangSelected: (SearchBang) -> Void
+
+    private let bangs: [SearchBang] = [
+        SearchBang(name: "Google", faviconURL: "https://www.google.com/s2/favicons?domain=google.com&sz=128", searchPrefix: "https://www.google.com/search?q=", homepage: "https://www.google.com"),
+        SearchBang(name: "YouTube", faviconURL: "https://www.google.com/s2/favicons?domain=youtube.com&sz=128", searchPrefix: "https://www.youtube.com/results?search_query=", homepage: "https://www.youtube.com"),
+        SearchBang(name: "Reddit", faviconURL: "https://www.google.com/s2/favicons?domain=reddit.com&sz=128", searchPrefix: "https://www.reddit.com/search/?q=", homepage: "https://www.reddit.com"),
+        SearchBang(name: "Wikipedia", faviconURL: "https://www.google.com/s2/favicons?domain=wikipedia.org&sz=128", searchPrefix: "https://en.wikipedia.org/wiki/Special:Search?search=", homepage: "https://en.wikipedia.org"),
+        SearchBang(name: "Amazon", faviconURL: "https://www.google.com/s2/favicons?domain=amazon.com&sz=128", searchPrefix: "https://www.amazon.com/s?k=", homepage: "https://www.amazon.com"),
+        SearchBang(name: "Perplexity", faviconURL: "https://www.google.com/s2/favicons?domain=perplexity.ai&sz=128", searchPrefix: "https://www.perplexity.ai/search?q=", homepage: "https://www.perplexity.ai")
+    ]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(bangs) { bang in
+                    BangButton(bang: bang) {
+                        onBangSelected(bang)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+        }
+        .opacity(1)
+        .animation(.easeInOut(duration: 0.2), value: searchText)
+    }
+}
+
+struct BangButton: View {
+    let bang: SearchBang
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                // Liquid glass background with readability layer
+                ZStack {
+                    Circle()
+                        .fill(.black.opacity(0.15))
+                        .frame(width: 48, height: 48)
+
+                    if #available(iOS 26.0, *) {
+                        Circle()
+                            .fill(.clear)
+                            .glassEffect(.clear, in: Circle())
+                            .frame(width: 48, height: 48)
+                    } else {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 48, height: 48)
+                    }
+                }
+
+                // Favicon with liquid glass overlay
+                ZStack {
+                    AsyncImage(url: URL(string: bang.faviconURL)) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .scaleEffect(0.5)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 28, height: 28)
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                        case .failure:
+                            Image(systemName: "globe")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundColor(.secondary)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+
+                    // Subtle glass overlay on favicon
+                    if #available(iOS 26.0, *) {
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(.clear)
+                            .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 5))
+                            .frame(width: 28, height: 28)
+                            .opacity(0.2)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: 48, height: 48)
     }
 }
 

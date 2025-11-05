@@ -1,0 +1,386 @@
+const AWS = require('aws-sdk');
+
+// Configure AWS SDK
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || 'us-east-1'
+});
+
+const dynamodb = new AWS.DynamoDB();
+
+// Cache with 1-hour TTL for categories
+const cache = {
+    categories: null,
+    timestamp: null,
+    TTL: 1000 * 60 * 60 // 1 hour
+};
+
+// Helper function to parse DynamoDB item to BrowseForwardItem format
+function parseBrowseForwardItem(item) {
+  return {
+    url: item.url?.S || '',
+    title: item.title?.S || '',
+    thumbnailUrl: item.thumbnailUrl?.S || '',
+    domain: item.domain?.S || '',
+    category: item.category?.S || '',
+    bfCategory: item.bfCategory?.S || null,
+    isActive: item.isActive?.BOOL || false,
+    wordCount: item.wordCount?.N ? parseInt(item.wordCount.N) : null
+  };
+}
+
+// Helper function to build DynamoDB filter expression
+function buildFilterExpression(params) {
+  const filterExpressions = [];
+  const expressionAttributeNames = {};
+  const expressionAttributeValues = {};
+
+  if (params.category) {
+    filterExpressions.push('#bfCategory = :category');
+    expressionAttributeNames['#bfCategory'] = 'bfCategory';
+    expressionAttributeValues[':category'] = { S: params.category };
+  }
+
+  if (params.subcategory) {
+    filterExpressions.push('#bfSubcategory = :subcategory');
+    expressionAttributeNames['#bfSubcategory'] = 'bfSubcategory';
+    expressionAttributeValues[':subcategory'] = { S: params.subcategory };
+  }
+
+  if (params.isActiveOnly) {
+    filterExpressions.push('#status = :status');
+    expressionAttributeNames['#status'] = 'status';
+    expressionAttributeValues[':status'] = { S: 'active' };
+  }
+
+  if (params.source) {
+    filterExpressions.push('#source = :source');
+    expressionAttributeNames['#source'] = 'source';
+    expressionAttributeValues[':source'] = { S: params.source };
+  }
+
+  return {
+    filterExpression: filterExpressions.length > 0 ? filterExpressions.join(' AND ') : undefined,
+    expressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+    expressionAttributeValues: Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined
+  };
+}
+
+/**
+ * CRITICAL FIX: Get all categories using GSI with proper pagination
+ * This is MUCH more efficient than scanning the main table
+ */
+async function getAllCategoriesFromGSI() {
+  try {
+    console.log('🔍 Scanning category-status-index GSI for all categories with status=active...');
+
+    const categories = new Set();
+    let lastEvaluatedKey = null;
+    let totalScanned = 0;
+    let pageCount = 0;
+
+    // Scan the GSI (not the main table!) with pagination
+    do {
+      pageCount++;
+
+      const params = {
+        TableName: 'webpages',
+        IndexName: 'category-status-index', // USE THE GSI!
+        FilterExpression: '#status = :status',
+        ExpressionAttributeNames: {
+          '#status': 'status'
+        },
+        ExpressionAttributeValues: {
+          ':status': { S: 'active' }
+        },
+        ProjectionExpression: 'bfCategory',
+        Limit: 1000 // Process in batches
+      };
+
+      // Continue from last page if exists
+      if (lastEvaluatedKey) {
+        params.ExclusiveStartKey = lastEvaluatedKey;
+      }
+
+      console.log(`📄 Scanning GSI page ${pageCount}...`);
+      const result = await dynamodb.scan(params).promise();
+
+      totalScanned += result.Count || 0;
+
+      // Extract categories from this page
+      if (result.Items) {
+        result.Items.forEach(item => {
+          if (item.bfCategory && item.bfCategory.S) {
+            categories.add(item.bfCategory.S);
+          }
+        });
+      }
+
+      // Check if there are more pages
+      lastEvaluatedKey = result.LastEvaluatedKey;
+
+      console.log(`  Page ${pageCount}: Found ${result.Count} items, ${categories.size} unique categories so far`);
+
+    } while (lastEvaluatedKey); // Keep going until no more pages!
+
+    const categoryArray = Array.from(categories).sort();
+
+    console.log(`✅ GSI scan complete after ${pageCount} pages`);
+    console.log(`📊 Scanned ${totalScanned} items with status=active`);
+    console.log(`📋 Found ${categoryArray.length} categories: ${JSON.stringify(categoryArray)}`);
+
+    return categoryArray;
+
+  } catch (error) {
+    console.error('❌ Error scanning GSI:', error);
+
+    // Fallback categories if GSI scan fails
+    const fallback = [
+      'art', 'books', 'culture', 'food', 'history',
+      'movies', 'science', 'technology', 'webgames',
+      'wikipedia', 'youtube'
+    ];
+    console.log('⚠️ Using fallback categories:', fallback);
+    return fallback;
+  }
+}
+
+/**
+ * Get categories with caching
+ */
+async function getCategoriesWithCache() {
+  const now = Date.now();
+
+  // Return cached if still valid
+  if (cache.categories && cache.timestamp && (now - cache.timestamp) < cache.TTL) {
+    console.log('💾 Returning cached categories:', cache.categories);
+    return cache.categories;
+  }
+
+  // Fetch fresh data from GSI with pagination
+  console.log('🔄 Cache miss/expired, fetching fresh categories from GSI...');
+  const categories = await getAllCategoriesFromGSI();
+
+  // Update cache
+  cache.categories = categories;
+  cache.timestamp = now;
+
+  return categories;
+}
+
+export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const {
+      category,
+      subcategory,
+      isActiveOnly = 'true',
+      source,
+      limit = '50',
+      endpoint = 'browse-queue'
+    } = req.query;
+
+    console.log(`📱 API Request: ${endpoint}, category: ${category}, limit: ${limit}`);
+
+    const dynamoParams = {
+      TableName: 'webpages',
+      Limit: parseInt(limit)
+    };
+
+    // Handle different endpoints
+    if (endpoint === 'categories') {
+      // FIXED: Use GSI with pagination to get ALL categories
+      const categories = await getCategoriesWithCache();
+
+      // Add cache header for client-side caching
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+
+      console.log(`📤 Returning ${categories.length} categories to iOS app`);
+      return res.status(200).json({ categories });
+
+    } else if (endpoint === 'subcategories') {
+      // Get subcategories for a category - also needs pagination fix
+      if (!category) {
+        return res.status(400).json({ error: 'Category parameter required for subcategories endpoint' });
+      }
+
+      const subcategories = new Set();
+      let lastEvaluatedKey = null;
+
+      do {
+        const scanParams = {
+          TableName: 'webpages',
+          IndexName: 'category-status-index', // Use GSI for better performance
+          FilterExpression: '#bfCategory = :category AND #status = :status',
+          ExpressionAttributeNames: {
+            '#bfCategory': 'bfCategory',
+            '#status': 'status'
+          },
+          ExpressionAttributeValues: {
+            ':category': { S: category },
+            ':status': { S: 'active' }
+          },
+          ProjectionExpression: 'bfSubcategory',
+          Limit: 500
+        };
+
+        if (lastEvaluatedKey) {
+          scanParams.ExclusiveStartKey = lastEvaluatedKey;
+        }
+
+        const result = await dynamodb.scan(scanParams).promise();
+
+        result.Items.forEach(item => {
+          if (item.bfSubcategory?.S) {
+            subcategories.add(item.bfSubcategory.S);
+          }
+        });
+
+        lastEvaluatedKey = result.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+
+      const subcategoryArray = Array.from(subcategories).sort();
+      return res.status(200).json({ subcategories: subcategoryArray });
+
+    } else {
+      // Browse-queue endpoint - get content items
+      // This already uses the GSI correctly for queries (line 156-183)
+      const queryParams = {
+        category,
+        subcategory,
+        isActiveOnly: isActiveOnly === 'true',
+        source
+      };
+
+      const { filterExpression, expressionAttributeNames, expressionAttributeValues } = buildFilterExpression(queryParams);
+
+      // Use GSI query for better performance when category is specified
+      if (queryParams.category) {
+        // This part already uses the GSI correctly!
+        let items = [];
+        let lastEvaluatedKey = null;
+        const itemLimit = parseInt(limit);
+
+        do {
+          const gsiQueryParams = {
+            TableName: 'webpages',
+            IndexName: 'category-status-index',
+            KeyConditionExpression: 'bfCategory = :category AND #status = :status',
+            ExpressionAttributeNames: {
+              '#status': 'status'
+            },
+            ExpressionAttributeValues: {
+              ':category': { S: queryParams.category },
+              ':status': { S: 'active' }
+            },
+            Limit: Math.min(itemLimit - items.length, 100)
+          };
+
+          if (lastEvaluatedKey) {
+            gsiQueryParams.ExclusiveStartKey = lastEvaluatedKey;
+          }
+
+          const result = await dynamodb.query(gsiQueryParams).promise();
+          const pageItems = result.Items.map(parseBrowseForwardItem);
+          items = items.concat(pageItems);
+
+          lastEvaluatedKey = result.LastEvaluatedKey;
+
+          // Stop if we have enough items
+          if (items.length >= itemLimit) {
+            break;
+          }
+        } while (lastEvaluatedKey);
+
+        console.log(`✅ Retrieved ${items.length} items via GSI query for category: ${queryParams.category}`);
+
+        return res.status(200).json({
+          items: items.slice(0, itemLimit),
+          count: items.length,
+          category: queryParams.category
+        });
+
+      } else {
+        // Fallback to scan when no category specified
+        const scanParams = {
+          ...dynamoParams,
+          ProjectionExpression: '#url, title, thumbnailUrl, #domain, category, bfCategory, #status, wordCount',
+          ExpressionAttributeNames: {
+            '#url': 'url',
+            '#domain': 'domain',
+            '#status': 'status',
+            ...expressionAttributeNames
+          }
+        };
+
+        if (filterExpression) {
+          scanParams.FilterExpression = filterExpression;
+          scanParams.ExpressionAttributeValues = expressionAttributeValues;
+        }
+
+        console.log(`🔍 DynamoDB Scan params:`, JSON.stringify(scanParams, null, 2));
+        const result = await dynamodb.scan(scanParams).promise();
+        const items = result.Items.map(parseBrowseForwardItem);
+
+        console.log(`✅ Retrieved ${items.length} items via table scan`);
+
+        return res.status(200).json({
+          items,
+          count: items.length,
+          scannedCount: result.ScannedCount,
+          lastEvaluatedKey: result.LastEvaluatedKey ? JSON.stringify(result.LastEvaluatedKey) : null
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ API Error:', error);
+
+    if (error.code === 'UnrecognizedClientException') {
+      return res.status(401).json({
+        error: 'AWS credentials invalid',
+        code: 'INVALID_CREDENTIALS'
+      });
+    }
+
+    if (error.code === 'ResourceNotFoundException') {
+      return res.status(404).json({
+        error: 'Table not found',
+        code: 'TABLE_NOT_FOUND'
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+      message: error.message
+    });
+  }
+}
+
+/**
+ * 🎯 KEY IMPROVEMENTS:
+ *
+ * 1. ✅ USES GSI: Scans category-status-index instead of main table
+ * 2. ✅ PAGINATION: Continues scanning until LastEvaluatedKey is null
+ * 3. ✅ EFFICIENCY: GSI only contains items with bfCategory AND status fields
+ * 4. ✅ CACHING: Caches categories for 1 hour to reduce GSI scans
+ * 5. ✅ CONSISTENCY: Uses status='active' field (not isActive boolean)
+ *
+ * The GSI is a sparse index - it only contains items that have both
+ * bfCategory and status fields, making it MUCH faster to scan than
+ * the entire table!
+ */

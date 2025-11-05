@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/browse-content.js": {
+      "maxDuration": 10
+    }
+  }
+}
