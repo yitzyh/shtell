@@ -32,7 +32,11 @@ class BrowseForwardViewModel: ObservableObject {
     // Shared content queue for both card carousel and forward button
     @Published var browseQueue: [BrowseForwardItem] = []
     private var currentIndex = 0
-    
+
+    // Store full unfiltered items for client-side tag filtering
+    // Published so CategorySelectionView can extract subcategories from full set
+    @Published var fullUnfilteredItems: [BrowseForwardItem] = []
+
     // Simple cache - no persistence needed
     private var simpleCache: [String: [BrowseForwardItem]] = [:]
 
@@ -83,13 +87,60 @@ class BrowseForwardViewModel: ObservableObject {
     init(webPageViewModel: WebPageViewModel? = nil) {
         self.webPageViewModel = webPageViewModel
         isCacheReady = true
+
+        // Listen for preference changes to refilter without API calls
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("BrowseForwardPreferencesChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.refilterFromFullItems()
+            }
+        }
         browseForwardLog("🎯 BrowseForwardViewModel initialized")
     }
     
     func setWebPageViewModel(_ webPageViewModel: WebPageViewModel) {
         self.webPageViewModel = webPageViewModel
     }
-    
+
+    /// Preload popular categories on app launch for instant first-tap experience
+    func preloadPopularCategories() async {
+        let popularCategories = ["webgames", "youtube", "wikipedia", "art"]
+
+        browseForwardLog("🚀 Preloading popular categories: \(popularCategories.joined(separator: ", "))")
+
+        await withTaskGroup(of: (String, [BrowseForwardItem]?).self) { group in
+            for category in popularCategories {
+                group.addTask {
+                    do {
+                        let items = try await self.apiService.fetchBFQueueItems(
+                            category: category,
+                            isActiveOnly: true,
+                            limit: 100  // Smaller limit for preloading
+                        )
+                        browseForwardLog("✅ Preloaded \(category): \(items.count) items")
+                        return (category, items)
+                    } catch {
+                        browseForwardLog("❌ Failed to preload \(category): \(error)")
+                        return (category, nil)
+                    }
+                }
+            }
+
+            // Collect results and store in cache
+            for await (category, items) in group {
+                if let items = items {
+                    self.simpleCache[category] = items
+                    browseForwardLog("💾 Cached \(category) with \(items.count) items")
+                }
+            }
+        }
+
+        browseForwardLog("✅ Preloading complete. Cache size: \(simpleCache.keys.count) categories")
+    }
+
     /// Get a random saved page URL from user's saved content
     private func getRandomSavedPageURL() -> String? {
         browseForwardLog("📚 Looking for saved pages")
@@ -241,23 +292,19 @@ class BrowseForwardViewModel: ObservableObject {
             for category in selectedCategories {
                 browseForwardLog("🔍 DEBUG fetchByUserPreferences: Fetching from category: '\(category)'")
 
-                // Check if user has subcategory selections for this category
-                var selectedSubcategory: String? = nil
-                if let subcategories = preferences.selectedSubcategories[category],
-                   !subcategories.isEmpty {
-                    selectedSubcategory = subcategories.randomElement()
-                    browseForwardLog("🔍 DEBUG fetchByUserPreferences: Selected subcategory: '\(selectedSubcategory ?? "nil")'")
-                }
-
+                // Fetch entire category (no subcategory filtering - we'll filter after storing)
                 do {
                     let categoryItems = try await apiService.fetchBFQueueItems(
                         category: category,
-                        subcategory: selectedSubcategory,
+                        subcategory: nil,  // Always nil - Vercel API doesn't support subcategory filtering
                         isActiveOnly: true,
                         limit: itemsPerCategory
                     )
+
+                    // DON'T filter by subcategories here - we'll filter later in refreshWithPreferences
+                    // This way we can store full items for client-side refiltering
                     allItems.append(contentsOf: categoryItems)
-                    browseForwardLog("🔍 DEBUG fetchByUserPreferences: Category '\(category)' added \(categoryItems.count) items")
+                    browseForwardLog("🔍 DEBUG fetchByUserPreferences: Category '\(category)' added \(categoryItems.count) items (unfiltered)")
                 } catch {
                     browseForwardLog("⚠️ Failed to fetch from category '\(category)': \(error)")
                     // Continue with other categories
@@ -277,6 +324,46 @@ class BrowseForwardViewModel: ObservableObject {
         return result
     }
     
+    /// Refilter existing items based on current preferences (no API call)
+    private func refilterFromFullItems() async {
+        browseForwardLog("🔄 Refiltering from full items...")
+
+        guard !fullUnfilteredItems.isEmpty else {
+            browseForwardLog("⚠️  No full items to refilter from")
+            return
+        }
+
+        // Load current preferences
+        guard let data = UserDefaults.standard.data(forKey: "BrowseForwardPreferences"),
+              let preferences = try? JSONDecoder().decode(BrowseForwardPreferences.self, from: data) else {
+            browseForwardLog("⚠️ No preferences found for refiltering")
+            return
+        }
+
+        // Apply subcategory filtering if needed
+        var filteredItems = fullUnfilteredItems
+
+        if !preferences.selectedSubcategories.isEmpty {
+            filteredItems = fullUnfilteredItems.filter { item in
+                guard let itemCategory = item.bfCategory,
+                      let itemSubcategory = item.bfSubcategory else {
+                    return false
+                }
+
+                // Check if this item's subcategory is selected for its category
+                if let selectedSubs = preferences.selectedSubcategories[itemCategory] {
+                    return selectedSubs.contains(itemSubcategory)
+                }
+
+                return true // No subcategory filter for this category
+            }
+        }
+
+        browseQueue = filteredItems
+        currentIndex = 0
+        browseForwardLog("✅ Refiltered: \(fullUnfilteredItems.count) → \(filteredItems.count) items")
+    }
+
     /// Refresh content queue based on new preferences - used by preferences view
     func refreshWithPreferences(selectedCategories: [String], selectedSubcategories: [String: Set<String>]) async {
         // Cancel previous debounce task
@@ -302,13 +389,37 @@ class BrowseForwardViewModel: ObservableObject {
                 // Clear current queue
                 browseQueue.removeAll()
                 currentIndex = 0
-                
-                // Fetch new content based on preferences
+
+                // Fetch new content based on preferences (unfiltered by subcategories)
                 let newItems = try await fetchByUserPreferences(limit: 250)
-                browseQueue = newItems
-                
-                browseForwardLog("🔄 Queue refreshed with \(browseQueue.count) items")
-                
+
+                // Store full unfiltered items for client-side refiltering
+                fullUnfilteredItems = newItems
+                browseForwardLog("🔄 Stored \(fullUnfilteredItems.count) full unfiltered items")
+
+                // Apply subcategory filtering if needed
+                if !selectedSubcategories.isEmpty {
+                    let filteredItems = newItems.filter { item in
+                        guard let itemCategory = item.bfCategory,
+                              let itemSubcategory = item.bfSubcategory else {
+                            return false
+                        }
+
+                        // Check if this item's subcategory is selected for its category
+                        if let selectedSubs = selectedSubcategories[itemCategory] {
+                            return selectedSubs.contains(itemSubcategory)
+                        }
+
+                        return true // No subcategory filter for this category
+                    }
+                    browseQueue = filteredItems
+                    browseForwardLog("🔄 Queue filtered: \(newItems.count) → \(filteredItems.count) items")
+                } else {
+                    // No subcategory filtering, use all items
+                    browseQueue = newItems
+                    browseForwardLog("🔄 Queue refreshed with \(browseQueue.count) items (unfiltered)")
+                }
+
             } catch {
                 browseForwardLog("❌ Failed to refresh queue: \(error)")
             }

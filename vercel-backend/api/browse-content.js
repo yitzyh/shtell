@@ -205,7 +205,8 @@ async function getContentByCategory(category, subcategory, itemLimit) {
     do {
         const params = {
             TableName: TABLE_NAME,
-            FilterExpression: 'bfCategory = :category AND #status = :status',
+            IndexName: 'category-status-index',  // 🎯 USE THE GSI!
+            KeyConditionExpression: 'bfCategory = :category AND #status = :status',  // Query, not filter
             ExpressionAttributeNames: {
                 '#status': 'status'
             },
@@ -216,9 +217,9 @@ async function getContentByCategory(category, subcategory, itemLimit) {
             Limit: Math.min(itemLimit - items.length, 100)
         };
 
-        // Add subcategory filter if provided
+        // Add subcategory filter if provided (still uses FilterExpression for this)
         if (subcategory) {
-            params.FilterExpression += ' AND bfSubcategory = :subcategory';
+            params.FilterExpression = 'bfSubcategory = :subcategory';
             params.ExpressionAttributeValues[':subcategory'] = { S: subcategory };
         }
 
@@ -226,7 +227,7 @@ async function getContentByCategory(category, subcategory, itemLimit) {
             params.ExclusiveStartKey = lastEvaluatedKey;
         }
 
-        const result = await dynamodb.scan(params).promise();
+        const result = await dynamodb.query(params).promise();  // 🎯 QUERY, not scan!
         const pageItems = result.Items.map(item => AWS.DynamoDB.Converter.unmarshall(item));
         items = items.concat(pageItems);
 
@@ -251,6 +252,11 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // 🚀 EDGE CACHING: Cache responses for 5 minutes at Vercel edge network
+    const cacheMaxAge = 300; // 5 minutes
+    res.setHeader('Cache-Control', `public, s-maxage=${cacheMaxAge}, stale-while-revalidate=${cacheMaxAge * 2}`);
+    res.setHeader('CDN-Cache-Control', `public, s-maxage=${cacheMaxAge}`);
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
