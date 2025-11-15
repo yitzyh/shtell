@@ -78,15 +78,15 @@ struct EnhancedBrowseForwardCategorySelector: View {
                     .padding(.vertical, 4)
                 }
 
-                // Tags (2 rows, scroll together, combined from all selected categories)
+                // Tags (3 rows, scroll together, combined from all selected categories)
                 if !cachedCombinedTags.isEmpty {
-                    let halfCount = (cachedCombinedTags.count + 1) / 2
+                    let thirdCount = (cachedCombinedTags.count + 2) / 3  // Divide into thirds
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 8) {
                             // First row
                             HStack(spacing: 8) {
-                                ForEach(cachedCombinedTags.prefix(halfCount), id: \.self) { tag in
+                                ForEach(cachedCombinedTags.prefix(thirdCount), id: \.self) { tag in
                                     SubcategoryTag(
                                         title: tag,
                                         isSelected: isTagSelected(tag),
@@ -100,7 +100,9 @@ struct EnhancedBrowseForwardCategorySelector: View {
 
                             // Second row
                             HStack(spacing: 8) {
-                                ForEach(cachedCombinedTags.dropFirst(halfCount), id: \.self) { tag in
+                                let secondRowStart = thirdCount
+                                let secondRowEnd = min(thirdCount * 2, cachedCombinedTags.count)
+                                ForEach(cachedCombinedTags[secondRowStart..<secondRowEnd], id: \.self) { tag in
                                     SubcategoryTag(
                                         title: tag,
                                         isSelected: isTagSelected(tag),
@@ -111,11 +113,28 @@ struct EnhancedBrowseForwardCategorySelector: View {
                                 }
                             }
                             .frame(height: 32)
+
+                            // Third row (NEW!)
+                            HStack(spacing: 8) {
+                                let thirdRowStart = thirdCount * 2
+                                if thirdRowStart < cachedCombinedTags.count {
+                                    ForEach(cachedCombinedTags[thirdRowStart...], id: \.self) { tag in
+                                        SubcategoryTag(
+                                            title: tag,
+                                            isSelected: isTagSelected(tag),
+                                            pageBackgroundIsDark: webBrowser.pageBackgroundIsDark
+                                        ) {
+                                            toggleTag(tag)
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(height: 32)
                         }
                         .padding(.horizontal, 20)
-                        .frame(height: 72)
+                        .frame(height: 104)  // Updated from 72 to 104 (32 * 3 + 8 * 2 spacing)
                     }
-                    .frame(height: 72)
+                    .frame(height: 104)  // Updated from 72 to 104
                 } else {
                     Text("Select categories to see tags")
                         .font(.caption)

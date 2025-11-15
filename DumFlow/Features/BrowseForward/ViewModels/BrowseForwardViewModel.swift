@@ -37,8 +37,9 @@ class BrowseForwardViewModel: ObservableObject {
     // Published so CategorySelectionView can extract subcategories from full set
     @Published var fullUnfilteredItems: [BrowseForwardItem] = []
 
-    // Simple cache - no persistence needed
-    private var simpleCache: [String: [BrowseForwardItem]] = [:]
+    // Smart cache with timestamps for TTL management (4 hour expiration)
+    private var categoryCache: [String: CachedCategory] = [:]
+    private let cacheLock = NSLock()
 
     // Duplicate tracking
     @Published private var recentlyShownURLs: Set<String> = []
@@ -105,15 +106,104 @@ class BrowseForwardViewModel: ObservableObject {
         self.webPageViewModel = webPageViewModel
     }
 
-    /// Preload popular categories on app launch for instant first-tap experience
-    func preloadPopularCategories() async {
-        let popularCategories = ["webgames", "youtube", "wikipedia", "art"]
+    // MARK: - Cache Management
 
-        browseForwardLog("🚀 Preloading popular categories: \(popularCategories.joined(separator: ", "))")
+    /// Check if category cache is valid
+    private func isCacheValid(for category: String) -> Bool {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        guard let cached = categoryCache[category] else {
+            return false
+        }
+
+        let valid = cached.isValid
+        if !valid {
+            browseForwardLog("⏰ Cache expired for \(category) (age: \(cached.cacheAge))")
+        } else {
+            browseForwardLog("✅ Cache valid for \(category) (age: \(cached.cacheAge))")
+        }
+
+        return valid
+    }
+
+    /// Get cached items if valid, nil otherwise
+    private func getCachedItems(for category: String) -> [BrowseForwardItem]? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        guard let cached = categoryCache[category], cached.isValid else {
+            return nil
+        }
+
+        browseForwardLog("💾 Using cached items for \(category): \(cached.items.count) items (age: \(cached.cacheAge))")
+        return cached.items
+    }
+
+    /// Store items in cache with timestamp
+    private func setCachedItems(_ items: [BrowseForwardItem], for category: String) {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        let cached = CachedCategory(category: category, items: items)
+        categoryCache[category] = cached
+        browseForwardLog("💾 Cached \(items.count) items for \(category) (expires in \(String(format: "%.1f", cached.timeUntilExpiration / 3600))h)")
+    }
+
+    /// Clear all expired caches (call periodically)
+    private func clearExpiredCaches() {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        let before = categoryCache.count
+        categoryCache = categoryCache.filter { $0.value.isValid }
+        let after = categoryCache.count
+
+        if before != after {
+            browseForwardLog("🧹 Cleared \(before - after) expired cache(s)")
+        }
+    }
+
+    /// Clear all caches (for testing/debugging)
+    func clearAllCaches() {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        let count = categoryCache.count
+        categoryCache.removeAll()
+        browseForwardLog("🧹 Cleared all caches (\(count) categories)")
+    }
+
+    /// Preload categories on app launch based on user preferences
+    /// Falls back to defaults if no preferences are saved
+    func preloadPopularCategories() async {
+        // Try to load user's saved preferences
+        let categoriesToPreload: [String]
+
+        if let data = UserDefaults.standard.data(forKey: "BrowseForwardPreferences"),
+           let preferences = try? JSONDecoder().decode(BrowseForwardPreferences.self, from: data),
+           !preferences.selectedCategories.isEmpty {
+            // Use saved preferences
+            categoriesToPreload = Array(preferences.selectedCategories)
+            browseForwardLog("🎯 Preloading from user preferences: \(categoriesToPreload.joined(separator: ", "))")
+        } else {
+            // No preferences - use smart defaults (Short Reads, youtube, webgames, wikipedia, news)
+            categoriesToPreload = ["Short Reads", "youtube", "webgames", "wikipedia", "news"]
+            browseForwardLog("🎯 Preloading defaults (no preferences): \(categoriesToPreload.joined(separator: ", "))")
+        }
+
+        browseForwardLog("🚀 Starting preload for \(categoriesToPreload.count) categories")
 
         await withTaskGroup(of: (String, [BrowseForwardItem]?).self) { group in
-            for category in popularCategories {
+            for category in categoriesToPreload {
                 group.addTask {
+                    // Check cache first - might be valid from previous session
+                    if let cachedItems = self.getCachedItems(for: category) {
+                        browseForwardLog("✅ \(category) already cached with \(cachedItems.count) items")
+                        return (category, cachedItems)
+                    }
+
+                    // Fetch if not cached or expired
                     do {
                         let items = try await self.apiService.fetchBFQueueItems(
                             category: category,
@@ -129,16 +219,16 @@ class BrowseForwardViewModel: ObservableObject {
                 }
             }
 
-            // Collect results and store in cache
+            // Collect results and store in cache with timestamps
             for await (category, items) in group {
                 if let items = items {
-                    self.simpleCache[category] = items
+                    self.setCachedItems(items, for: category)
                     browseForwardLog("💾 Cached \(category) with \(items.count) items")
                 }
             }
         }
 
-        browseForwardLog("✅ Preloading complete. Cache size: \(simpleCache.keys.count) categories")
+        browseForwardLog("✅ Preloading complete. Cache size: \(categoryCache.keys.count) categories")
     }
 
     /// Get a random saved page URL from user's saved content
@@ -202,25 +292,32 @@ class BrowseForwardViewModel: ObservableObject {
             return "https://en.wikipedia.org/wiki/Special:Random"
         }
     }
-    
-    /// Load category items using smart caching
+
+    /// Load category items using smart caching with TTL
     private func loadCategoryIfNeeded(_ category: String) async throws -> [BrowseForwardItem] {
         browseForwardLog("📂 Loading category: \(category)")
-        
-        // Check cache first
-        if let cachedItems = simpleCache[category], !cachedItems.isEmpty {
+
+        // Check cache first - use new TTL-aware cache
+        if let cachedItems = getCachedItems(for: category) {
             browseForwardLog("💾 Using cached items for category: \(category)")
             return cachedItems
         }
-        
-        // Fetch from AWS and cache
-        browseForwardLog("🔄 Fetching fresh items for category: \(category)")
-        let awsItems = try await apiService.fetchBFQueueItems(category: category, isActiveOnly: true, limit: 1000)
-        
-        // Cache the results
-        simpleCache[category] = awsItems
+
+        // Cache miss or expired - fetch from AWS
+        browseForwardLog("🔄 Fetching fresh items for category: \(category) (cache miss or expired)")
+        let awsItems = try await apiService.fetchBFQueueItems(
+            category: category,
+            isActiveOnly: true,
+            limit: 1000
+        )
+
+        // Store in cache with timestamp
+        setCachedItems(awsItems, for: category)
         browseForwardLog("💾 Cached \(awsItems.count) items for category: \(category)")
-        
+
+        // Cleanup expired caches while we're here
+        clearExpiredCaches()
+
         return awsItems
     }
     
