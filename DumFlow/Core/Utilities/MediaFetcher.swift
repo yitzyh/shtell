@@ -16,7 +16,7 @@ struct WebPageMedia {
 
 class MediaFetcher {
     static let shared = MediaFetcher()
-    
+
     private init() {}
     
     /// Fetch title, favicon, and thumbnail in a single HTML download

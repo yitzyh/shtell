@@ -21,6 +21,7 @@ enum BrowseForwardError: Error {
 }
 
 // MARK: - BrowseForwardItem Model (DEPRECATED - Use AWSWebPageItem directly)
+// Note: Using CachedCategory from Models/CachedCategory.swift
 
 @available(iOS 13.0, *)
 @MainActor
@@ -28,16 +29,17 @@ class BrowseForwardViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isCacheReady = false
     @Published var browseForwardPreferences: [String] = []
-    
-    // Shared content queue for both card carousel and forward button
-    @Published var browseQueue: [BrowseForwardItem] = []
-    private var currentIndex = 0
 
-    // Store full unfiltered items for client-side tag filtering
-    // Published so CategorySelectionView can extract subcategories from full set
-    @Published var fullUnfilteredItems: [BrowseForwardItem] = []
+    // SINGLE SOURCE OF TRUTH: Filtered items displayed in both grid and slide-through
+    @Published var displayedItems: [BrowseForwardItem] = []
 
-    // Smart cache with timestamps for TTL management (4 hour expiration)
+    // Track current filters for reapplying after cache refresh
+    private var activeFilters: (categories: Set<String>, tags: [String: Set<String>]) = ([], [:])
+
+    // Slide-through navigation index (replaces currentIndex)
+    private var slideIndex = 0
+
+    // Category-based cache with 30-min TTL
     private var categoryCache: [String: CachedCategory] = [:]
     private let cacheLock = NSLock()
 
@@ -45,6 +47,7 @@ class BrowseForwardViewModel: ObservableObject {
     @Published private var recentlyShownURLs: Set<String> = []
     private let maxRecentlyShown = 50 // Remember last 50 URLs
     private weak var webPageViewModel: WebPageViewModel?
+    private weak var webBrowser: WebBrowser?
     private let apiService: BrowseForwardAPIService = BrowseForwardAPIService.shared
     
     // Debouncing for category changes
@@ -85,25 +88,153 @@ class BrowseForwardViewModel: ObservableObject {
         return randomItem
     }
 
-    init(webPageViewModel: WebPageViewModel? = nil) {
+    init(webPageViewModel: WebPageViewModel? = nil, webBrowser: WebBrowser? = nil) {
         self.webPageViewModel = webPageViewModel
+        self.webBrowser = webBrowser
         isCacheReady = true
 
-        // Listen for preference changes to refilter without API calls
-        NotificationCenter.default.addObserver(
-            forName: Notification.Name("BrowseForwardPreferencesChanged"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                await self?.refilterFromFullItems()
-            }
-        }
+        // No more NotificationCenter - preferences will be applied directly via method calls
         browseForwardLog("🎯 BrowseForwardViewModel initialized")
     }
-    
+
     func setWebPageViewModel(_ webPageViewModel: WebPageViewModel) {
         self.webPageViewModel = webPageViewModel
+    }
+
+    // MARK: - New Unified Filtering System
+
+    /// Apply category and tag filters - Single method for all filtering
+    func applyFilters(selectedCategories: Set<String>, selectedTags: [String: Set<String>]) async {
+        browseForwardLog("🎯 Applying filters - Categories: \(selectedCategories), Tags: \(selectedTags)")
+
+        // Store active filters for refresh/reload
+        activeFilters = (selectedCategories, selectedTags)
+
+        // Cancel any pending operations
+        debounceTask?.cancel()
+
+        // Start loading
+        isLoading = true
+
+        do {
+            // Step 1: Load all items for selected categories (uses cache when available)
+            var allItems: [BrowseForwardItem] = []
+
+            for category in selectedCategories {
+                // Check cache first
+                if let cached = categoryCache[category], cached.isValid {
+                    browseForwardLog("✅ Using cached \(category): \(cached.items.count) items")
+                    allItems.append(contentsOf: cached.items)
+                } else {
+                    // Fetch from API
+                    browseForwardLog("📡 Fetching \(category) from API")
+                    let items = try await apiService.fetchBFQueueItems(
+                        category: category,
+                        isActiveOnly: true,
+                        limit: 250
+                    )
+                    // Store in cache with category name
+                    categoryCache[category] = CachedCategory(category: category, items: items)
+                    allItems.append(contentsOf: items)
+                    browseForwardLog("💾 Cached \(category): \(items.count) items")
+                }
+            }
+
+            browseForwardLog("📊 Total items from \(selectedCategories.count) categories: \(allItems.count)")
+
+            // Step 2: Apply tag filters CLIENT-SIDE (instant!)
+            if selectedTags.isEmpty || selectedTags.values.allSatisfy({ $0.isEmpty }) {
+                // No tags selected - show all items from categories
+                displayedItems = allItems
+                browseForwardLog("📊 No tag filters - displaying all \(allItems.count) items")
+            } else {
+                // Filter by selected tags
+                displayedItems = allItems.filter { item in
+                    guard let category = item.bfCategory,
+                          let subcategory = item.bfSubcategory else { return false }
+
+                    // Check if this category has tag filters
+                    if let tags = selectedTags[category], !tags.isEmpty {
+                        return tags.contains(subcategory)
+                    }
+                    // No tag filter for this category = include all items from it
+                    return true
+                }
+                browseForwardLog("🏷️ Tag filtered: \(allItems.count) → \(displayedItems.count) items")
+            }
+
+            // Step 3: Reset slide index for BrowseForward
+            slideIndex = 0
+
+            // Trigger preloading if available
+            if let poolManager = webBrowser?.poolManager {
+                let urls = Array(displayedItems.prefix(3).map { $0.url })
+                poolManager.preloadNextURLs(urls)
+            }
+
+        } catch {
+            browseForwardLog("❌ Failed to apply filters: \(error)")
+            // Keep existing items on error
+        }
+
+        isLoading = false
+    }
+
+    /// Invalidate cache and refresh with current filters - Used by pull-to-refresh
+    func invalidateAndRefresh() async {
+        browseForwardLog("🔄 Invalidating cache and refreshing")
+
+        // Clear cache for active categories
+        for category in activeFilters.categories {
+            categoryCache.removeValue(forKey: category)
+            browseForwardLog("🗑️ Cleared cache for \(category)")
+        }
+
+        // Reapply filters (will fetch fresh data)
+        await applyFilters(selectedCategories: activeFilters.categories, selectedTags: activeFilters.tags)
+    }
+
+    /// Get next URL for slide-through navigation (replaces getNextURLFromQueue)
+    func getNextSlideURL() -> String? {
+        guard !displayedItems.isEmpty else {
+            browseForwardLog("⚠️ No items to slide through")
+            return nil
+        }
+
+        let item = displayedItems[slideIndex]
+        slideIndex = (slideIndex + 1) % displayedItems.count
+
+        // Smart refill when running low (but maintains filters!)
+        let remainingItems = displayedItems.count - slideIndex
+        if remainingItems <= 10 && !isLoading {
+            browseForwardLog("📈 Running low on items (\(remainingItems) left), loading more...")
+            Task {
+                await loadMoreWithCurrentFilters()
+            }
+        }
+
+        browseForwardLog("📄 Slide URL: \(item.url) (\(slideIndex)/\(displayedItems.count))")
+        return item.url
+    }
+
+    /// Load more items while maintaining current filters
+    private func loadMoreWithCurrentFilters() async {
+        // This maintains the same filters, just loads more content
+        // In future, could implement pagination here
+        await applyFilters(selectedCategories: activeFilters.categories, selectedTags: activeFilters.tags)
+    }
+
+    /// Get all cached items (unfiltered) for tag extraction
+    func getAllCachedItems() -> [BrowseForwardItem] {
+        var allItems: [BrowseForwardItem] = []
+        for (_, cache) in categoryCache {
+            allItems.append(contentsOf: cache.items)
+        }
+        return allItems
+    }
+
+    func setWebBrowser(_ webBrowser: WebBrowser) {
+        self.webBrowser = webBrowser
     }
 
     // MARK: - Cache Management
@@ -196,7 +327,7 @@ class BrowseForwardViewModel: ObservableObject {
 
         await withTaskGroup(of: (String, [BrowseForwardItem]?).self) { group in
             for category in categoriesToPreload {
-                group.addTask {
+                group.addTask { @MainActor in
                     // Check cache first - might be valid from previous session
                     if let cachedItems = self.getCachedItems(for: category) {
                         browseForwardLog("✅ \(category) already cached with \(cachedItems.count) items")
@@ -240,8 +371,8 @@ class BrowseForwardViewModel: ObservableObject {
     }
     
     func getRandomURL(category: String? = nil, userID: String? = nil) async throws -> String? {
-        browseForwardLog("🎯 getRandomURL: Using synchronized queue system")
-        
+        browseForwardLog("🎯 getRandomURL: Using new unified system")
+
         // Handle saved pages category specially
         if let category = category, category == "saved" {
             browseForwardLog("🎯 getRandomURL: Handling 'saved' category")
@@ -250,23 +381,24 @@ class BrowseForwardViewModel: ObservableObject {
                 return savedURL
             }
         }
-        
-        // Initialize queue if empty
-        if browseQueue.isEmpty {
-            do {
-                await initializeBrowseQueue()
-                if browseQueue.isEmpty {
-                    throw BrowseForwardError.queueInitializationFailed
-                }
-            } catch {
-                browseForwardLog("❌ Queue initialization failed in getRandomURL: \(error)")
-                // Return fallback URL instead of crashing
+
+        // Initialize displayedItems if empty
+        if displayedItems.isEmpty {
+            browseForwardLog("📋 No items displayed, loading defaults...")
+            // Load default categories if no filters are set
+            if activeFilters.categories.isEmpty {
+                let defaultCategories: Set<String> = ["webgames", "youtube", "wikipedia"]
+                await applyFilters(selectedCategories: defaultCategories, selectedTags: [:])
+            }
+
+            if displayedItems.isEmpty {
+                browseForwardLog("❌ No items available after loading")
                 return "https://en.wikipedia.org/wiki/Special:Random"
             }
         }
-        
-        // Get next URL from synchronized queue
-        return await getNextURLFromQueue()
+
+        // Get next URL from slide system
+        return getNextSlideURL()
     }
     
     /// Get a random URL from a specific category using smart caching
@@ -421,7 +553,10 @@ class BrowseForwardViewModel: ObservableObject {
         return result
     }
     
-    /// Refilter existing items based on current preferences (no API call)
+    // MARK: - DEPRECATED METHODS (will be removed after testing)
+
+    // Old filtering method - replaced by applyFilters
+    /*
     private func refilterFromFullItems() async {
         browseForwardLog("🔄 Refiltering from full items...")
 
@@ -460,73 +595,17 @@ class BrowseForwardViewModel: ObservableObject {
         currentIndex = 0
         browseForwardLog("✅ Refiltered: \(fullUnfilteredItems.count) → \(filteredItems.count) items")
     }
+    */
 
-    /// Refresh content queue based on new preferences - used by preferences view
+    /// Refresh content queue based on new preferences - REDIRECTS TO NEW SYSTEM
     func refreshWithPreferences(selectedCategories: [String], selectedSubcategories: [String: Set<String>]) async {
-        // Cancel previous debounce task
-        debounceTask?.cancel()
-        
-        // Create new debounced task
-        debounceTask = Task {
-            browseForwardLog("⏱️ Debouncing category change for 500ms...")
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
-            
-            guard !Task.isCancelled else {
-                browseForwardLog("⏹️ Debounced refresh cancelled")
-                return
-            }
-            
-            browseForwardLog("🔄 Refreshing content with new preferences")
-            browseForwardLog("🔄 Categories: \(selectedCategories)")
-            browseForwardLog("🔄 Subcategories: \(selectedSubcategories)")
-            
-            isLoading = true
-            
-            do {
-                // Clear current queue
-                browseQueue.removeAll()
-                currentIndex = 0
-
-                // Fetch new content based on preferences (unfiltered by subcategories)
-                let newItems = try await fetchByUserPreferences(limit: 250)
-
-                // Store full unfiltered items for client-side refiltering
-                fullUnfilteredItems = newItems
-                browseForwardLog("🔄 Stored \(fullUnfilteredItems.count) full unfiltered items")
-
-                // Apply subcategory filtering if needed
-                if !selectedSubcategories.isEmpty {
-                    let filteredItems = newItems.filter { item in
-                        guard let itemCategory = item.bfCategory,
-                              let itemSubcategory = item.bfSubcategory else {
-                            return false
-                        }
-
-                        // Check if this item's subcategory is selected for its category
-                        if let selectedSubs = selectedSubcategories[itemCategory] {
-                            return selectedSubs.contains(itemSubcategory)
-                        }
-
-                        return true // No subcategory filter for this category
-                    }
-                    browseQueue = filteredItems
-                    browseForwardLog("🔄 Queue filtered: \(newItems.count) → \(filteredItems.count) items")
-                } else {
-                    // No subcategory filtering, use all items
-                    browseQueue = newItems
-                    browseForwardLog("🔄 Queue refreshed with \(browseQueue.count) items (unfiltered)")
-                }
-
-            } catch {
-                browseForwardLog("❌ Failed to refresh queue: \(error)")
-            }
-            
-            isLoading = false
-        }
-        
-        await debounceTask?.value
+        // Convert to Set and use new unified method
+        let categoriesSet = Set(selectedCategories)
+        await applyFilters(selectedCategories: categoriesSet, selectedTags: selectedSubcategories)
     }
-    
+
+    // Rest of old methods are commented out below
+    /*
     private func fetchDefaultContent(limit: Int) async throws -> [BrowseForwardItem] {
         browseForwardLog("🎲 === STARTING fetchDefaultContent ===")
         browseForwardLog("🎲 limit: \(limit)")
@@ -545,12 +624,19 @@ class BrowseForwardViewModel: ObservableObject {
     func initializeBrowseQueue() async {
         browseForwardLog("🔄 Initializing browse queue")
         isLoading = true
-        
+
         do {
             let items = try await fetchByUserPreferences(limit: 250)
             browseQueue = items
             currentIndex = 0
             browseForwardLog("✅ Queue initialized with \(browseQueue.count) items")
+
+            // Trigger preloading after queue ready
+            if let poolManager = webBrowser?.poolManager {
+                let urls = getNextURLsForPreloading(count: 2)
+                poolManager.preloadNextURLs(urls)
+                browseForwardLog("🔄 Started preloading \(urls.count) URLs")
+            }
         } catch {
             browseForwardLog("❌ Failed to initialize queue: \(error)")
             // Fallback to default content
@@ -559,11 +645,18 @@ class BrowseForwardViewModel: ObservableObject {
                 browseQueue = defaultItems
                 currentIndex = 0
                 browseForwardLog("✅ Queue initialized with \(browseQueue.count) default items")
+
+                // Trigger preloading for fallback content too
+                if let poolManager = webBrowser?.poolManager {
+                    let urls = getNextURLsForPreloading(count: 2)
+                    poolManager.preloadNextURLs(urls)
+                    browseForwardLog("🔄 Started preloading \(urls.count) URLs (fallback)")
+                }
             } catch {
                 browseForwardLog("❌ Failed to load default content: \(error)")
             }
         }
-        
+
         isLoading = false
     }
     
@@ -617,4 +710,25 @@ class BrowseForwardViewModel: ObservableObject {
         
         isLoading = false
     }
+
+    // MARK: - Preloading Support
+
+    /// Get next URLs for preloading
+    func getNextURLsForPreloading(count: Int = 3) -> [String] {
+        guard !browseQueue.isEmpty else {
+            browseForwardLog("⚠️ Cannot preload: queue is empty")
+            return []
+        }
+
+        // Get URLs starting from current index
+        var urls: [String] = []
+        for i in 0..<count {
+            let index = (currentIndex + i) % browseQueue.count
+            urls.append(browseQueue[index].url)
+        }
+
+        browseForwardLog("📋 Returning \(urls.count) URLs for preloading")
+        return urls
+    }
+    */
 }

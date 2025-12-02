@@ -6,7 +6,10 @@ struct SavedWebPagesView: View {
     @EnvironmentObject private var webBrowser: WebBrowser
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) var colorScheme
-    
+
+    @State private var commentsUrlString: String?
+    @State private var showingComments = false
+
     var body: some View {
         NavigationView {
             Group {
@@ -34,7 +37,15 @@ struct SavedWebPagesView: View {
                         }, id: \.id.recordName) { webPage in
                             WebPageRowView(
                                 webPage: webPage,
-                                commentsUrlString: .constant(nil),
+                                commentsUrlString: Binding(
+                                    get: { nil },
+                                    set: { newValue in
+                                        if let url = newValue {
+                                            commentsUrlString = url
+                                            showingComments = true
+                                        }
+                                    }
+                                ),
                                 onURLTap: { urlString in
                                     webBrowser.urlString = urlString
                                     webBrowser.isUserInitiatedNavigation = true
@@ -54,6 +65,14 @@ struct SavedWebPagesView: View {
                     Button("Done") {
                         dismiss()
                     }
+                }
+            }
+            .sheet(isPresented: $showingComments) {
+                if let urlString = commentsUrlString {
+                    CommentView(urlString: urlString)
+                        .environmentObject(authViewModel)
+                        .environmentObject(webPageViewModel)
+                        .environmentObject(webBrowser)
                 }
             }
         }

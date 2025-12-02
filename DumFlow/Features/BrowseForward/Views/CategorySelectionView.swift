@@ -96,7 +96,6 @@ struct EnhancedBrowseForwardCategorySelector: View {
                                     }
                                 }
                             }
-                            .frame(height: 32)
 
                             // Second row
                             HStack(spacing: 8) {
@@ -112,9 +111,8 @@ struct EnhancedBrowseForwardCategorySelector: View {
                                     }
                                 }
                             }
-                            .frame(height: 32)
 
-                            // Third row (NEW!)
+                            // Third row
                             HStack(spacing: 8) {
                                 let thirdRowStart = thirdCount * 2
                                 if thirdRowStart < cachedCombinedTags.count {
@@ -129,12 +127,9 @@ struct EnhancedBrowseForwardCategorySelector: View {
                                     }
                                 }
                             }
-                            .frame(height: 32)
                         }
                         .padding(.horizontal, 20)
-                        .frame(height: 104)  // Updated from 72 to 104 (32 * 3 + 8 * 2 spacing)
                     }
-                    .frame(height: 104)  // Updated from 72 to 104
                 } else {
                     Text("Select categories to see tags")
                         .font(.caption)
@@ -147,33 +142,41 @@ struct EnhancedBrowseForwardCategorySelector: View {
             loadPreferences()
             loadCategories()
 
-            // Initialize browse queue if empty
-            if browseForwardViewModel.browseQueue.isEmpty {
+            // Initialize items if empty
+            if browseForwardViewModel.displayedItems.isEmpty {
                 Task {
                     await browseForwardViewModel.refreshWithPreferences(
                         selectedCategories: Array(selectedCategories),
                         selectedSubcategories: selectedSubcategories
                     )
+
+                    // After first load, auto-navigate to first item
+                    if !browseForwardViewModel.displayedItems.isEmpty {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            webBrowser.browseForward()
+                        }
+                    }
                 }
             } else {
                 // Items already loaded, extract subcategories immediately
                 extractSubcategoriesFromLoadedItems()
             }
         }
-        .onChange(of: browseForwardViewModel.fullUnfilteredItems) {
-            // Extract subcategories whenever new full items are loaded from API
+        .onChange(of: browseForwardViewModel.displayedItems) {
+            // Extract subcategories whenever items are loaded from API
             extractSubcategoriesFromLoadedItems()
         }
     }
 
-    // Extract unique subcategories from FULL unfiltered items (not filtered browseQueue!)
+    // Extract unique subcategories from ALL CACHED items (not filtered displayedItems!)
     private func extractSubcategoriesFromLoadedItems() {
-        print("🏷️ Extracting subcategories from FULL unfiltered items")
+        print("🏷️ Extracting subcategories from all cached items")
 
         var subcategoriesByCategory: [String: Set<String>] = [:]
 
-        // Extract from FULL unfiltered items, not from filtered browseQueue
-        for item in browseForwardViewModel.fullUnfilteredItems {
+        // Extract from ALL cached items (unfiltered) for complete tag list
+        let allCachedItems = browseForwardViewModel.getAllCachedItems()
+        for item in allCachedItems {
             guard let category = item.bfCategory,
                   let subcategory = item.bfSubcategory,
                   !subcategory.isEmpty else {
@@ -194,7 +197,7 @@ struct EnhancedBrowseForwardCategorySelector: View {
 
         availableSubcategories = updatedAvailableSubcategories
 
-        print("✅ Extracted subcategories from \(browseForwardViewModel.fullUnfilteredItems.count) full items: \(availableSubcategories)")
+        print("✅ Extracted subcategories from \(allCachedItems.count) cached items: \(availableSubcategories)")
 
         // Update cached combined tags
         updateCachedCombinedTags()
@@ -245,15 +248,26 @@ struct EnhancedBrowseForwardCategorySelector: View {
 
         savePreferences()
 
-        // NOTE: Don't refresh here! ViewModel will filter client-side based on preferences
-        // Making a new API call causes tags to disappear and wastes 10+ seconds
-        print("🏷️ Tag toggled, preferences saved. ViewModel will filter existing items.")
+        // Trigger client-side filtering with new tag selection
+        // This uses cached data (no API calls) and applies filters instantly
+        Task {
+            await browseForwardViewModel.refreshWithPreferences(
+                selectedCategories: Array(selectedCategories),
+                selectedSubcategories: selectedSubcategories
+            )
+        }
+        print("🏷️ Tag toggled, triggering client-side filter")
     }
 
     private func toggleCategory(_ category: String) {
         print("🔘 toggleCategory called for: \(category)")
 
         if selectedCategories.contains(category) {
+            // Prevent deselecting the last category
+            if selectedCategories.count == 1 {
+                print("⚠️ Cannot deselect last category")
+                return
+            }
             print("🔘 DESELECTING \(category)")
             selectedCategories.remove(category)
             // Clean up stale subcategory data
@@ -263,6 +277,8 @@ struct EnhancedBrowseForwardCategorySelector: View {
             selectedCategories.insert(category)
         }
 
+        print("📊 Selected categories now: \(selectedCategories)")
+
         // Update cached tags based on new selection
         updateCachedCombinedTags()
 
@@ -270,7 +286,7 @@ struct EnhancedBrowseForwardCategorySelector: View {
 
         // Auto-refresh content when category changes
         // Note: extractSubcategoriesFromLoadedItems() will be called automatically
-        // via .onChange(of: browseQueue) when items finish loading
+        // via .onChange(of: displayedItems) when items finish loading
         Task {
             await browseForwardViewModel.refreshWithPreferences(
                 selectedCategories: Array(selectedCategories),
@@ -287,8 +303,21 @@ struct EnhancedBrowseForwardCategorySelector: View {
                 availableCategories = try await BrowseForwardAPIService.shared.getAvailableCategories()
                 print("✅ Loaded \(availableCategories.count) categories")
 
+                // Auto-select all categories if none are selected (prevents blank screen)
+                if selectedCategories.isEmpty && !availableCategories.isEmpty {
+                    print("🎯 No categories selected - auto-selecting all \(availableCategories.count) categories")
+                    selectedCategories = Set(availableCategories)
+                    savePreferences()
+
+                    // Trigger content load with all categories
+                    await browseForwardViewModel.refreshWithPreferences(
+                        selectedCategories: Array(selectedCategories),
+                        selectedSubcategories: selectedSubcategories
+                    )
+                }
+
                 // Note: extractSubcategoriesFromLoadedItems() will be called automatically
-                // via .onChange(of: browseQueue) when items are available
+                // via .onChange(of: displayedItems) when items are available
             } catch {
                 print("❌ Failed to load categories: \(error)")
                 availableCategories = []
@@ -313,7 +342,7 @@ struct EnhancedBrowseForwardCategorySelector: View {
         )
         if let data = try? JSONEncoder().encode(preferences) {
             preferencesData = data
-            NotificationCenter.default.post(name: Notification.Name("BrowseForwardPreferencesChanged"), object: nil)
+            // No more NotificationCenter - the ViewModel will be updated directly via refreshWithPreferences
         }
     }
 }
@@ -396,8 +425,8 @@ struct SubcategoryTag: View {
                 .foregroundColor(.white)
                 .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                 .frame(minWidth: 50)
-                .frame(height: 32)
                 .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(
                     ZStack {
                         if isSelected {

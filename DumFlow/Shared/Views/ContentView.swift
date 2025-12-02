@@ -75,7 +75,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     // Minimal top spacing
                     Spacer()
-                        .frame(height: 80)
+                        .frame(height: 60)
 
                     // 1. Cards at top (results/content) - fixed position
                     // Priority: Searching spinner → Search results/empty → Default browse queue
@@ -421,12 +421,12 @@ struct ContentView: View {
         }
         .onChange(of: searchIsFocused) { oldValue, newValue in
             print("🔍 DEBUG: searchIsFocused changed from \(oldValue) to \(newValue)")
-            print("🔍 DEBUG: browseQueue count = \(browseForwardViewModel.browseQueue.count)")
+            print("🔍 DEBUG: displayedItems count = \(browseForwardViewModel.displayedItems.count)")
 
             if newValue {
-                // Search overlay opened - load browse queue if empty
-                if browseForwardViewModel.browseQueue.isEmpty {
-                    print("🔍 DEBUG: browseQueue is empty, loading content...")
+                // Search overlay opened - load items if empty
+                if browseForwardViewModel.displayedItems.isEmpty {
+                    print("🔍 DEBUG: displayedItems is empty, loading content...")
                     Task {
                         await browseForwardViewModel.refreshWithPreferences(selectedCategories: [], selectedSubcategories: [:])
                     }
@@ -707,8 +707,8 @@ struct ContentView: View {
             // Mark as saved immediately to prevent duplicate operations from multiple taps
             webPageViewModel.uiState.savedWebPageStates.insert(normalizedURL)
 
-            // Create webpage and save it
-            webPageViewModel.createWebPageForSave(for: normalizedURL) { newWebPage in
+            // Create webpage and save it with current page title
+            webPageViewModel.createWebPageForSave(for: normalizedURL, title: webBrowser.pageTitle) { newWebPage in
                 if let webPage = newWebPage {
                     // WebPage is created - now perform direct save operation
                     // Don't use toggleSave since we already updated the state above
@@ -1385,8 +1385,8 @@ struct BrowseForwardCategorySelector: View {
             loadPreferences()
             loadCategories()
 
-            // Initialize browse queue if empty
-            if browseForwardViewModel.browseQueue.isEmpty {
+            // Initialize items if empty
+            if browseForwardViewModel.displayedItems.isEmpty {
                 Task {
                     await browseForwardViewModel.refreshWithPreferences(
                         selectedCategories: Array(selectedCategories),

@@ -20,15 +20,15 @@ struct CachedCategory: Codable {
         self.itemCount = items.count
     }
 
-    /// Check if cache is still valid (4 hour TTL)
+    /// Check if cache is still valid (30 minute TTL for Phase 3 architecture)
     var isValid: Bool {
-        let ttl: TimeInterval = 4 * 60 * 60 // 4 hours
+        let ttl: TimeInterval = 30 * 60 // 30 minutes
         return Date().timeIntervalSince(cachedAt) < ttl
     }
 
     /// Time remaining until cache expires
     var timeUntilExpiration: TimeInterval {
-        let ttl: TimeInterval = 4 * 60 * 60
+        let ttl: TimeInterval = 30 * 60 // 30 minutes
         let elapsed = Date().timeIntervalSince(cachedAt)
         return max(0, ttl - elapsed)
     }

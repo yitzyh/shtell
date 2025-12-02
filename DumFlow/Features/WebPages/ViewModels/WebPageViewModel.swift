@@ -88,6 +88,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
     // MARK: - Private Properties
     var currentWebPageURLString: String?
     var cancellables = Set<AnyCancellable>()
+    private var saveCancellables = Set<AnyCancellable>() // Never cleared - ensures saves complete
     private var createWebPageBackgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     weak var webBrowser: WebBrowser?
     
@@ -433,9 +434,9 @@ class WebPageViewModel: ObservableObject, Identifiable {
             .store(in: &cancellables)
     }
 
-    /// Creates a WebPage for save operations with full media (title, favicon, thumbnail)
-    /// Fetches media before creating the record to ensure saved items have complete metadata
-    func createWebPageForSave(for urlString: String, completion: @escaping (WebPage?) -> Void) {
+    /// Creates a WebPage for save operations - instant save with just URL and title
+    /// UI will generate favicon/thumbnails dynamically like BrowseForward does
+    func createWebPageForSave(for urlString: String, title providedTitle: String? = nil, completion: @escaping (WebPage?) -> Void) {
         print("🟢 createWebPageForSave: Called for URL: \(urlString)")
 
         guard let normalizedURLString = urlString.normalizedURL,
@@ -446,92 +447,99 @@ class WebPageViewModel: ObservableObject, Identifiable {
         }
         print("✅ createWebPageForSave: Normalized URL: \(normalizedURLString)")
 
-        // Fetch media first to ensure saved item has proper metadata
-        print("🔄 createWebPageForSave: Fetching media for URL: \(normalizedURLString)")
-        MediaFetcher.shared.fetchAllMedia(for: normalizedURLString)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] (media: WebPageMedia) in
-                guard let self = self else { return }
+        // Run save operation in detached task to prevent cancellation during navigation
+        Task.detached { [weak self] in
+            guard let self = self else { return }
 
-                print("🔄 createWebPageForSave: Media fetched, creating record")
-
-                // Create WebPage record with media
-                let recordID = CKRecord.ID(recordName: normalizedURLString)
-                let record = CKRecord(recordType: "WebPage", recordID: recordID)
-
-                // Set title - use custom title for shtell:// URLs
-                let title: String
-                if normalizedURLString.hasPrefix("shtell://") {
-                    title = "Shtell - The comment section for the internet"
-                } else {
-                    title = media.title ?? self.extractQuickTitle(from: normalizedURLString)
-                }
-
-                record["dateCreated"] = Date() as NSDate
-                record["urlString"] = normalizedURLString as NSString
-                record["title"] = title as NSString
-                record["commentCount"] = 0 as NSNumber
-                record["likeCount"] = 0 as NSNumber
-                record["saveCount"] = 0 as NSNumber
-                record["isReported"] = 0 as NSNumber
-                record["reportCount"] = 0 as NSNumber
-                // Extract domain - handle custom shtell:// URLs
-                let domain: String
-                if normalizedURLString.hasPrefix("shtell://") {
-                    domain = "shtell"
-                } else {
-                    domain = URL(string: normalizedURLString)?.host ?? ""
-                }
-                record["domain"] = domain as NSString
-
-                // Add media if available
-                // For shtell:// URLs, use app icon
-                if normalizedURLString.hasPrefix("shtell://") {
-                    if let appIconData = self.getAppIconData() {
-                        record["faviconData"] = appIconData as NSData
-                        if let thumbnailData = self.safetyCompressImageData(appIconData, maxSize: 15_000) {
-                            record["thumbnailData"] = thumbnailData as NSData
-                        }
-                    }
-                } else {
-                    if let faviconData = media.faviconData {
-                        record["faviconData"] = faviconData as NSData
-                    }
-                    if let thumbnailData = self.safetyCompressImageData(media.thumbnailData, maxSize: 15_000) {
-                        record["thumbnailData"] = thumbnailData as NSData
-                    }
-                }
-
-                // Save to CloudKit
-                print("🔄 createWebPageForSave: Saving to CloudKit with media")
-                self.publicDatabase.save(record) { savedRecord, error in
-                    if let error = error {
-                        print("❌ createWebPageForSave: Error creating WebPage record: \(error)")
-                        DispatchQueue.main.async {
-                            completion(nil)
-                        }
-                        return
-                    }
-
-                    guard let saved = savedRecord else {
-                        print("❌ createWebPageForSave: No saved record returned from CloudKit")
-                        DispatchQueue.main.async {
-                            completion(nil)
-                        }
-                        return
-                    }
-
-                    print("✅ createWebPageForSave: Successfully saved webpage with media to CloudKit")
-
-                    // Update local state and call completion on main thread
-                    Task { @MainActor in
-                        let newWebPage = self.makeWebPage(from: saved)
-                        self.contentState.webPage = newWebPage
-                        completion(newWebPage)
-                    }
+            // Begin background task to protect against app suspension
+            var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+            await MainActor.run {
+                backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+                    print("⚠️ createWebPageForSave: Background task expired for \(normalizedURLString)")
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                    backgroundTaskID = .invalid
                 }
             }
-            .store(in: &self.cancellables)
+
+            // Create WebPage record - no media fetching needed
+            let recordID = CKRecord.ID(recordName: normalizedURLString)
+            let record = CKRecord(recordType: "WebPage", recordID: recordID)
+
+            // Set title - use provided title from WebView, fallback to domain-based title
+            let title: String
+            if normalizedURLString.hasPrefix("shtell://") {
+                title = "Shtell - The comment section for the internet"
+            } else if let providedTitle = providedTitle, !providedTitle.isEmpty {
+                title = providedTitle
+                print("✅ createWebPageForSave: Using WebView title: \(title)")
+            } else {
+                title = await MainActor.run {
+                    self.extractQuickTitle(from: normalizedURLString)
+                }
+                print("⚠️ createWebPageForSave: No title provided, using domain: \(title)")
+            }
+
+            record["dateCreated"] = Date() as NSDate
+            record["urlString"] = normalizedURLString as NSString
+            record["title"] = title as NSString
+            record["commentCount"] = 0 as NSNumber
+            record["likeCount"] = 0 as NSNumber
+            record["saveCount"] = 0 as NSNumber
+            record["isReported"] = 0 as NSNumber
+            record["reportCount"] = 0 as NSNumber
+
+            // Extract domain - handle custom shtell:// URLs
+            let domain: String
+            if normalizedURLString.hasPrefix("shtell://") {
+                domain = "shtell"
+            } else {
+                domain = URL(string: normalizedURLString)?.host ?? ""
+            }
+            record["domain"] = domain as NSString
+
+            // Save to CloudKit (instant - no media fetching)
+            print("🔄 createWebPageForSave: Saving to CloudKit")
+
+            let publicDatabase = await MainActor.run { self.publicDatabase }
+            let result = await withCheckedContinuation { (continuation: CheckedContinuation<(CKRecord?, Error?), Never>) in
+                publicDatabase.save(record) { savedRecord, error in
+                    continuation.resume(returning: (savedRecord, error))
+                }
+            }
+
+            // End background task
+            await MainActor.run {
+                if backgroundTaskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                    print("✅ createWebPageForSave: Background task ended")
+                }
+            }
+
+            if let error = result.1 {
+                print("❌ createWebPageForSave: Error creating WebPage record: \(error)")
+                await MainActor.run {
+                    completion(nil)
+                }
+                return
+            }
+
+            guard let saved = result.0 else {
+                print("❌ createWebPageForSave: No saved record returned from CloudKit")
+                await MainActor.run {
+                    completion(nil)
+                }
+                return
+            }
+
+            print("✅ createWebPageForSave: Successfully saved webpage to CloudKit")
+
+            // Update local state and call completion on main thread
+            await MainActor.run {
+                let newWebPage = self.makeWebPage(from: saved)
+                self.contentState.webPage = newWebPage
+                completion(newWebPage)
+            }
+        }
     }
 
     /// Extract a smart title from URL while media loads (from CommentService)
@@ -1203,10 +1211,27 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 self.uiState.webPageSaveCounts[webPage.urlString] = newCount
             }
 
-            // Batch operation: save record and update page record
+            // Batch operation: save record and update page record with background task protection
             let modifyOp = CKModifyRecordsOperation(recordsToSave: [record, pageRecord], recordIDsToDelete: nil)
             modifyOp.savePolicy = .allKeys
+
+            // Begin background task to ensure save completes even during navigation
+            var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+            backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+                // Cleanup if task expires
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                backgroundTaskID = .invalid
+            }
+
             modifyOp.modifyRecordsResultBlock = { result in
+                defer {
+                    // Always end the background task
+                    if backgroundTaskID != .invalid {
+                        UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                        backgroundTaskID = .invalid
+                    }
+                }
+
                 DispatchQueue.main.async {
                     switch result {
                     case .failure(let error):

@@ -105,8 +105,15 @@ struct WebPageRowView: View {
                             .stroke(lineWidth: 1)
                             .frame(width: 25, height: 25)
                         
-                        FaviconView(faviconData: cachedImages.favicon)
-                            .frame(width: 15, height: 15)
+                        // Use cached data if available, otherwise fetch from URL
+                        Group {
+                            if cachedImages.favicon != nil {
+                                FaviconView(faviconData: cachedImages.favicon)
+                            } else {
+                                FaviconView(urlString: webPage.urlString)
+                            }
+                        }
+                        .frame(width: 15, height: 15)
                     }
                     .onTapGesture {
                         handleDomainTap()
@@ -406,17 +413,37 @@ struct LazyThumbnailView: View {
                         .stroke(lineWidth: 0.2)
                 }
             } else {
-                // Skeleton loading or fallback
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: thumbnailWidth, height: thumbnailHeight)
-                    .redacted(reason: .placeholder)
-                    .overlay {
-                        // Fallback text when not loading
-                        Text(urlString.shortURL().prefix(1).uppercased())
-                            .font(.largeTitle)
-                            .opacity(0.6)
+                // Third priority: Dynamic favicon URL (like BrowseForward)
+                let domain = URL(string: urlString)?.host ?? urlString
+                let faviconURL = "https://www.google.com/s2/favicons?domain=\(domain)&sz=128"
+
+                ZStack {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: thumbnailWidth, height: thumbnailHeight)
+
+                    AsyncImage(url: URL(string: faviconURL)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 48, height: 48)
+                        case .failure, .empty:
+                            VStack(spacing: 4) {
+                                Image(systemName: "globe")
+                                    .foregroundColor(.gray)
+                                    .font(.title2)
+                                Text(domain.prefix(1).uppercased())
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        @unknown default:
+                            EmptyView()
+                        }
                     }
+                }
+                .cornerRadius(5)
             }
         }
     }

@@ -52,11 +52,12 @@ private struct SimulatorHelper {
 @MainActor
 class WebBrowser: ObservableObject{
 
-    @Published var urlString = "shtell://beta"
+    @Published var urlString = ""
         {
             didSet {
             }
         }
+    @Published var pageTitle: String?
     @Published var isUserInitiatedNavigation = false
     @Published var canGoBack: Bool = false
     @Published var canGoForward: Bool = false
@@ -74,6 +75,7 @@ class WebBrowser: ObservableObject{
     weak var wkWebView: WKWebView?
     weak var webPageViewModel: WebPageViewModel?
     weak var browseForwardViewModel: BrowseForwardViewModel?
+    weak var poolManager: WebViewPoolManager?
     var readerModeSettings = ReaderModeSettings()
 
 
@@ -457,47 +459,47 @@ class WebBrowser: ObservableObject{
         let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
         if verboseLogging {
             print("🚀 DEBUG browseForward: Starting standard BrowseForward")
+            print("🚀 DEBUG browseForward: displayedItems count: \(browseForwardViewModel.displayedItems.count)")
         }
         #endif
 
-        do {
-            // Use the new BFP preference system instead of old category system
-            let bfQueue = try await browseForwardViewModel.fetchByUserPreferences(limit: 500)
-
+        // Use new filtered displayedItems system
+        guard let nextURL = browseForwardViewModel.getNextSlideURL() else {
             #if DEBUG
-            if verboseLogging {
-                print("🚀 DEBUG browseForward: BFP system returned \(bfQueue.count) items")
-                if !bfQueue.isEmpty {
-                    let firstFewURLs = bfQueue.prefix(3).map { self.cleanURLForLogging($0.url) }
-                    print("🚀 DEBUG browseForward: Sample URLs: \(firstFewURLs)")
-                }
-            }
+            print("⚠️ BrowseForward: No items available, using Wikipedia fallback")
             #endif
-
-            let nextURL = bfQueue.randomElement()?.url ?? "https://en.wikipedia.org/wiki/Special:Random"
-
-            #if DEBUG
-            if verboseLogging {
-                print("🚀 DEBUG browseForward: Selected URL: \(self.cleanURLForLogging(nextURL))")
-            }
-            if nextURL.contains("wikipedia.org") {
-                print("⚠️ BrowseForward: Using Wikipedia fallback")
-            }
-            #endif
-
-            isForwardNavigation = true
-            urlString = nextURL
-            isUserInitiatedNavigation = true
-
-        } catch {
-            #if DEBUG
-            print("🚨 BrowseForward: Error fetching content: \(error.localizedDescription)")
-            #endif
-
-            // Fallback to Wikipedia Random
             isForwardNavigation = true
             urlString = "https://en.wikipedia.org/wiki/Special:Random"
             isUserInitiatedNavigation = true
+            return
+        }
+
+        #if DEBUG
+        if verboseLogging {
+            print("🚀 DEBUG browseForward: Selected URL from filtered displayedItems: \(self.cleanURLForLogging(nextURL))")
+        }
+        #endif
+
+        isForwardNavigation = true
+        urlString = nextURL
+        isUserInitiatedNavigation = true
+
+        // Trigger continuous preloading after navigation
+        Task.detached { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s delay
+
+            if let poolManager = self.poolManager,
+               let viewModel = self.browseForwardViewModel {
+                let urls = Array(viewModel.displayedItems.prefix(3).map { $0.url })
+                poolManager.preloadNextURLs(urls)
+
+                #if DEBUG
+                let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+                if verboseLogging {
+                    print("🔄 BrowseForward: Triggered continuous preloading for \(urls.count) URLs")
+                }
+                #endif
+            }
         }
     }
     
@@ -575,9 +577,10 @@ class WebBrowser: ObservableObject{
     /// Set the page title (called from WebView coordinator)
     func setCurrentTitle(_ title: String?) {
         self.currentTitle = title
+        self.pageTitle = title
     }
     
-    init(urlString: String = "shtell://beta") {
+    init(urlString: String = "") {
         // Default landing page - will be replaced by BrowseForward after splash
         self.urlString = urlString
     }
@@ -612,9 +615,109 @@ struct WebView: UIViewRepresentable {
     @Binding var scrollProgress: CGFloat
     var onQuoteText: ((String, String, Int) -> Void)?
     var onCommentTap: ((String) -> Void)?
-    
-    
+
+    // MARK: - Setup Preloaded WebView
+    private func setupPreloadedWebView(_ webView: WKWebView, context: Context) {
+        // Re-attach delegates (CRITICAL - they're not persisted in pool)
+        webView.navigationDelegate = context.coordinator
+        webView.uiDelegate = context.coordinator
+        webView.scrollView.delegate = context.coordinator
+
+        // Re-add message handlers
+        webView.configuration.userContentController.removeAllScriptMessageHandlers()
+        webView.configuration.userContentController.add(context.coordinator, name: "commentTap")
+        webView.configuration.userContentController.add(context.coordinator, name: "textSelection")
+
+        // Re-add gesture recognizers
+        let forwardSwipe = UISwipeGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(context.coordinator.handleForwardSwipe(_:))
+        )
+        forwardSwipe.direction = .left
+        webView.addGestureRecognizer(forwardSwipe)
+
+        // Setup selection monitoring
+        context.coordinator.setupSelectionMonitoring(for: webView)
+
+        // Disable UIKit's auto-inset adjustments
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+
+        // Calculate and set insets
+        DispatchQueue.main.async {
+            let topToolbarHeight: CGFloat = 44
+            let bottomToolbarHeight: CGFloat = 50
+
+            let topSafe = webView.window?.safeAreaInsets.top ?? webView.safeAreaInsets.top
+            let bottomSafe = webView.window?.safeAreaInsets.bottom ?? webView.safeAreaInsets.bottom
+
+            let totalTopInset = topToolbarHeight + topSafe
+            let totalBottomInset = bottomToolbarHeight + bottomSafe
+
+            webView.scrollView.contentInset = UIEdgeInsets(
+                top: totalTopInset,
+                left: 0,
+                bottom: totalBottomInset,
+                right: 0
+            )
+            webView.scrollView.scrollIndicatorInsets = webView.scrollView.contentInset
+        }
+
+        // Re-add refresh control
+        let refreshControl = ArrowRefreshControl()
+        refreshControl.webBrowser = webBrowser
+        refreshControl.addTarget(
+            context.coordinator,
+            action: #selector(context.coordinator.handleRefresh(_:)),
+            for: .valueChanged
+        )
+        webView.scrollView.refreshControl = refreshControl
+
+        // Re-add bottom arrow indicator
+        let bottomArrow = BottomArrowIndicator(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+        bottomArrow.webBrowser = webBrowser
+        bottomArrow.translatesAutoresizingMaskIntoConstraints = false
+        webView.scrollView.addSubview(bottomArrow)
+        context.coordinator.bottomArrowIndicator = bottomArrow
+
+        NSLayoutConstraint.activate([
+            bottomArrow.centerXAnchor.constraint(equalTo: webView.scrollView.centerXAnchor),
+            bottomArrow.bottomAnchor.constraint(equalTo: webView.scrollView.bottomAnchor, constant: -50),
+            bottomArrow.widthAnchor.constraint(equalToConstant: 50),
+            bottomArrow.heightAnchor.constraint(equalToConstant: 50)
+        ])
+
+        // Connect ViewModels to WebBrowser
+        webBrowser.browseForwardViewModel = browseForwardViewModel
+        webBrowser.webPageViewModel = webPageViewModel
+
+        // Setup coordinator
+        context.coordinator.setupWebView(webView)
+
+        // Reset scroll position
+        webView.scrollView.setContentOffset(.zero, animated: false)
+    }
+
+
     func makeUIView(context: Context) -> WKWebView {
+        // Check pool for preloaded WebView first
+        if let poolManager = webBrowser.poolManager,
+           !webBrowser.urlString.isEmpty,
+           !webBrowser.urlString.hasPrefix("data:"),
+           !webBrowser.urlString.hasPrefix("shtell://") {
+            if let preloadedWebView = poolManager.getPreloadedWebView(for: webBrowser.urlString) {
+                #if DEBUG
+                let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+                if verboseLogging {
+                    print("✅ WebView: Using preloaded WebView for \(webBrowser.urlString)")
+                }
+                #endif
+
+                setupPreloadedWebView(preloadedWebView, context: context)
+                return preloadedWebView
+            }
+        }
+
+        // Fall back to normal WebView creation
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.allowsPictureInPictureMediaPlayback = true
@@ -629,9 +732,9 @@ struct WebView: UIViewRepresentable {
 
         // Add message handler for comment taps
         config.userContentController.add(context.coordinator, name: "commentTap")
-        
+
         // Process pool configuration no longer needed (deprecated iOS 15+)
-        
+
         // Simulator-specific configurations
         if SimulatorHelper.isSimulator {
             // More aggressive caching and network settings for simulator
@@ -643,7 +746,7 @@ struct WebView: UIViewRepresentable {
                 config.preferences.isFraudulentWebsiteWarningEnabled = false
             }
         }
-        
+
         let webView = WKWebView(frame: .zero, configuration: config)
         
         webView.allowsBackForwardNavigationGestures = true
@@ -690,28 +793,46 @@ struct WebView: UIViewRepresentable {
         refreshControl.addTarget(context.coordinator, action: #selector(context.coordinator.handleRefresh(_:)), for: .valueChanged)
         webView.scrollView.addSubview(refreshControl)
         webView.scrollView.refreshControl = refreshControl
-        
+
+        // Add bottom arrow indicator for pull-up gesture
+        let bottomArrow = BottomArrowIndicator(frame: CGRect(x: 0, y: 0, width: 50, height: 50))
+        bottomArrow.webBrowser = webBrowser
+        bottomArrow.translatesAutoresizingMaskIntoConstraints = false
+        webView.scrollView.addSubview(bottomArrow)
+        context.coordinator.bottomArrowIndicator = bottomArrow
+
+        // Position bottom arrow at bottom center
+        NSLayoutConstraint.activate([
+            bottomArrow.centerXAnchor.constraint(equalTo: webView.scrollView.centerXAnchor),
+            bottomArrow.bottomAnchor.constraint(equalTo: webView.scrollView.bottomAnchor, constant: -50),
+            bottomArrow.widthAnchor.constraint(equalToConstant: 50),
+            bottomArrow.heightAnchor.constraint(equalToConstant: 50)
+        ])
+
         // Connect ViewModels to WebBrowser
         webBrowser.browseForwardViewModel = browseForwardViewModel
         webBrowser.webPageViewModel = webPageViewModel
 
 
-        
-        // Load splash screen HTML using new system with data URLs for history
-        if webBrowser.shouldShowSplashScreen() {
-            let splashHTML = webBrowser.getSplashScreenHTML()
-            let encodedHTML = splashHTML.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            let dataURL = URL(string: "data:text/html;charset=utf-8,\(encodedHTML)")!
-            webView.load(URLRequest(url: dataURL))
-            webBrowser.advanceSplashScreen()
-            webBrowser.markSplashScreenAsSeen()
-        } else {
-            // Splash already shown - trigger BrowseForward to load first item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                webBrowser.browseForward()
-            }
-        }
-        
+
+        // SPLASH SCREEN DISABLED - Just load content immediately
+        // if webBrowser.shouldShowSplashScreen() {
+        //     let splashHTML = webBrowser.getSplashScreenHTML()
+        //     let encodedHTML = splashHTML.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        //     let dataURL = URL(string: "data:text/html;charset=utf-8,\(encodedHTML)")!
+        //     webView.load(URLRequest(url: dataURL))
+        //     webBrowser.advanceSplashScreen()
+        //     webBrowser.markSplashScreenAsSeen()
+        // } else {
+        //     // Splash already shown - trigger BrowseForward to load first item
+        //     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        //         webBrowser.browseForward()
+        //     }
+        // }
+
+        // Don't auto-navigate on startup - let user choose from cards
+        // CategorySelectionView will populate displayedItems in background
+
         context.coordinator.setupWebView(webView)
         
         return webView
@@ -720,13 +841,20 @@ struct WebView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {
 
             if webBrowser.isUserInitiatedNavigation {
-                if webBrowser.urlString.hasPrefix("shtell://") {
-                    // Load splash screen for shtell://beta
-                    let splashHTML = webBrowser.getSplashScreenHTML()
-                    uiView.loadHTMLString(splashHTML, baseURL: URL(string: webBrowser.urlString))
-                } else if let url = URL(string: webBrowser.urlString) {
+                // SPLASH SCREEN DISABLED
+                // if webBrowser.urlString.hasPrefix("shtell://") {
+                //     // Load splash screen for shtell://beta
+                //     let splashHTML = webBrowser.getSplashScreenHTML()
+                //     uiView.loadHTMLString(splashHTML, baseURL: URL(string: webBrowser.urlString))
+                // } else if let url = URL(string: webBrowser.urlString) {
+                //     uiView.load(URLRequest(url: url))
+                // }
+
+                // Just load the URL directly
+                if let url = URL(string: webBrowser.urlString) {
                     uiView.load(URLRequest(url: url))
                 }
+
                 Task { @MainActor in
                     webBrowser.isUserInitiatedNavigation = false
                 }
@@ -744,7 +872,7 @@ struct WebView: UIViewRepresentable {
         @Binding var scrollProgress: CGFloat
         var onQuoteText: ((String, String, Int) -> Void)?
         var onCommentTap: ((String) -> Void)?
-        
+
         private var lastContentOffset: CGFloat = 0
         private var quoteButton: UIButton?
         private var urlObservation: NSKeyValueObservation?
@@ -752,6 +880,16 @@ struct WebView: UIViewRepresentable {
         private var canGoForwardObserver: NSKeyValueObservation?
         private var progressObserver: NSKeyValueObservation?
         private weak var webView: WKWebView?
+
+        // MARK: - Bottom Pull Gesture State
+        private var bottomPullProgress: CGFloat = 0
+        private var hasTriggeredBottomPull = false
+        private var bottomPullThreshold: CGFloat = 110.0 // Requires deliberate pull
+        private var feedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
+        var bottomArrowIndicator: BottomArrowIndicator?
+        private var isNavigating = false // Track navigation state
+        private var wasAtBottomOnPageLoad = false // Track if we started at bottom
+        private var hasMovedAwayFromBottom = false // User must move away first
         
         func goBack() { webView?.goBack() }
         func goForward() { webView?.goForward() }
@@ -945,9 +1083,12 @@ struct WebView: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            isNavigating = true // Disable bottom pull during navigation
+            hasMovedAwayFromBottom = false // Reset: user must scroll away from bottom on new page
+
             DispatchQueue.main.async {
                 self.webBrowser.loadingProgress = 0.0
-                
+
                 // Track page exit analytics before loading new page
                 if let webPageViewModel = self.webBrowser.webPageViewModel {
                     webPageViewModel.browserHistoryService.trackPageExit()
@@ -956,6 +1097,7 @@ struct WebView: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            isNavigating = false // Re-enable bottom pull on error
             print("WebView: Failed to load - \(error.localizedDescription)")
             
             // Handle simulator-specific networking issues
@@ -993,6 +1135,7 @@ struct WebView: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            isNavigating = false // Re-enable bottom pull on error
             print("WebView: Navigation failed - \(error.localizedDescription)")
         }
 
@@ -1002,6 +1145,11 @@ struct WebView: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // Re-enable bottom pull after navigation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.isNavigating = false
+            }
+
             DispatchQueue.main.async {
                 self.webBrowser.canGoBack = webView.canGoBack
                 self.webBrowser.canGoForward = webView.canGoForward
@@ -1082,23 +1230,100 @@ struct WebView: UIViewRepresentable {
                     scrollProgress = 0.0
                 }
             }
-            
+
+            // MARK: - Bottom Edge Detection for Pull-Up Gesture
+            let maxScrollOffset = max(0, scrollView.contentSize.height - scrollView.frame.height)
+            let distanceFromBottom = maxScrollOffset - currentOffset
+            let isCurrentlyAtBottom = distanceFromBottom < 50 // Within 50pts of bottom
+
+            // Track if user has moved away from bottom since page load
+            if !isCurrentlyAtBottom && !hasMovedAwayFromBottom {
+                hasMovedAwayFromBottom = true
+                #if DEBUG
+                let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+                if verboseLogging {
+                    print("🎯 BOTTOM-PULL: User moved away from bottom, detection enabled")
+                }
+                #endif
+            }
+
+            // Only detect bottom pull if not navigating, page loaded, AND user has moved away from bottom
+            let isPageLoading = webView?.isLoading ?? true
+            let canDetectBottomPull = !isNavigating && !isPageLoading && hasMovedAwayFromBottom
+
+            // Detect overscroll at bottom (bouncing past content)
+            if canDetectBottomPull && currentOffset > maxScrollOffset && maxScrollOffset > 0 {
+                let overscrollDistance = currentOffset - maxScrollOffset
+                handleBottomOverscroll(distance: overscrollDistance, scrollView: scrollView)
+            } else {
+                // Reset if not overscrolling
+                resetBottomPullState()
+            }
+
             lastContentOffset = currentOffset
-            
+
             // Hide quote button when scrolling
             hideQuoteButton()
-            
+
             // Track scroll depth for analytics - simplified to prevent crashes
             if let webPageViewModel = webBrowser.webPageViewModel {
-                let maxScrollOffset = max(0, scrollView.contentSize.height - scrollView.frame.height)
                 if maxScrollOffset > 0 {
                     let scrollDepth = min(1.0, max(0.0, currentOffset / maxScrollOffset))
                     webPageViewModel.browserHistoryService.updateScrollDepth(scrollDepth)
                 }
             }
         }
-        
-        
+
+        // MARK: - Bottom Pull Gesture Handlers
+        private func handleBottomOverscroll(distance: CGFloat, scrollView: UIScrollView) {
+            bottomPullProgress = min(1.0, distance / bottomPullThreshold)
+
+            // Update bottom arrow indicator
+            bottomArrowIndicator?.updateProgress(bottomPullProgress)
+
+            #if DEBUG
+            let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
+            if verboseLogging && !hasTriggeredBottomPull {
+                print("🎯 BOTTOM-PULL: distance=\(distance), progress=\(bottomPullProgress), hasMovedAway=\(hasMovedAwayFromBottom)")
+            }
+            #endif
+
+            // Trigger BrowseForward when threshold reached
+            if distance >= bottomPullThreshold && !hasTriggeredBottomPull {
+                hasTriggeredBottomPull = true
+                feedbackGenerator.impactOccurred()
+
+                #if DEBUG
+                if verboseLogging {
+                    print("🎯 BOTTOM-PULL: ✅ Triggered BrowseForward from bottom!")
+                }
+                #endif
+
+                // Trigger BrowseForward with bottom direction
+                DispatchQueue.main.async {
+                    // Notify that this is a bottom-pull gesture
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("BrowseForwardBottomPull"),
+                        object: nil,
+                        userInfo: ["direction": "bottom"]
+                    )
+                    self.webBrowser.browseForward()
+
+                    // Hide the arrow after triggering
+                    self.bottomArrowIndicator?.hide()
+                }
+            }
+        }
+
+        private func resetBottomPullState() {
+            if hasTriggeredBottomPull || bottomPullProgress > 0 {
+                hasTriggeredBottomPull = false
+                bottomPullProgress = 0
+                bottomArrowIndicator?.hide()
+            }
+        }
+
+
         private func extractSelectedTextAndQuote(from webView: WKWebView) {
             print("🔍 DEBUG WebView: extractSelectedTextAndQuote called")
             let script = """
@@ -1582,6 +1807,89 @@ class ArrowRefreshControl: UIRefreshControl {
         }) { _ in
             super.endRefreshing()
         }
+    }
+}
+
+// MARK: - Bottom Arrow Indicator for Pull-Up Gesture
+class BottomArrowIndicator: UIView {
+    weak var webBrowser: WebBrowser?
+    private let arrowView = UIImageView()
+    private var progress: CGFloat = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupArrowView()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupArrowView()
+    }
+
+    private func setupArrowView() {
+        backgroundColor = .clear
+
+        // Setup arrow pointing down (will appear at bottom)
+        arrowView.image = UIImage(systemName: "arrow.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .medium))
+        arrowView.contentMode = .scaleAspectFit
+        arrowView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(arrowView)
+
+        // Center the arrow
+        NSLayoutConstraint.activate([
+            arrowView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            arrowView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            arrowView.widthAnchor.constraint(equalToConstant: 24),
+            arrowView.heightAnchor.constraint(equalToConstant: 24)
+        ])
+
+        // Initial state - hidden
+        arrowView.alpha = 0
+        arrowView.transform = .identity
+    }
+
+    func updateProgress(_ newProgress: CGFloat) {
+        progress = newProgress
+
+        // Update arrow scale and alpha based on pull progress
+        let scale = 0.1 + (progress * 1.1)
+        arrowView.transform = CGAffineTransform(scaleX: scale, y: scale)
+        arrowView.alpha = min(1.0, progress * 1.2)
+
+        // Update color based on progress and page background
+        if let webBrowser = webBrowser {
+            let baseColor = webBrowser.pageBackgroundIsDark ? UIColor.white : UIColor.black
+
+            // Change to orange when ready to trigger (90% progress)
+            if progress >= 0.9 {
+                arrowView.tintColor = .systemOrange
+                // Add subtle pulse animation when ready
+                if arrowView.layer.animation(forKey: "pulse") == nil {
+                    let pulse = CABasicAnimation(keyPath: "transform.scale")
+                    pulse.fromValue = 1.0
+                    pulse.toValue = 1.1
+                    pulse.duration = 0.3
+                    pulse.autoreverses = true
+                    pulse.repeatCount = .infinity
+                    arrowView.layer.add(pulse, forKey: "pulse")
+                }
+            } else {
+                arrowView.tintColor = baseColor
+                arrowView.layer.removeAnimation(forKey: "pulse")
+            }
+        }
+    }
+
+    func hide() {
+        // Remove any pulse animation
+        arrowView.layer.removeAnimation(forKey: "pulse")
+
+        // Animate arrow disappearing
+        UIView.animate(withDuration: 0.2, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5, animations: {
+            self.arrowView.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+            self.arrowView.alpha = 0
+            self.arrowView.tintColor = self.webBrowser?.pageBackgroundIsDark == true ? .white : .black
+        })
     }
 }
 

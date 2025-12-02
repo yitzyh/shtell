@@ -17,6 +17,7 @@ struct DumFlowApp: App {
     @StateObject var webBrowser = WebBrowser()
     @StateObject var webPageViewModel: WebPageViewModel
     @StateObject var browseForwardViewModel = BrowseForwardViewModel()
+    @StateObject var webViewPoolManager = WebViewPoolManager()
     
     init() {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -45,9 +46,36 @@ struct DumFlowApp: App {
                 .environmentObject(webBrowser)
                 .environmentObject(webPageViewModel)
                 .environmentObject(browseForwardViewModel)
+                .environmentObject(webViewPoolManager)
                 .onAppear {
                     setupWebBrowserConnections()
                     checkForSharedURL()
+                }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
+                    webViewPoolManager.handleMemoryWarning()
+                    #if DEBUG
+                    print("⚠️ Memory warning: Cleared WebView pool")
+                    #endif
+                }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.didEnterBackgroundNotification)) { _ in
+                    // Clear pool when app goes to background to save memory
+                    webViewPoolManager.clearPool()
+                    #if DEBUG
+                    print("🌙 App entered background: Cleared WebView pool")
+                    #endif
+                }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.willEnterForegroundNotification)) { _ in
+                    // Resume preloading when app comes back to foreground
+                    if browseForwardViewModel.isCacheReady {
+                        let urls = Array(browseForwardViewModel.displayedItems.prefix(3).map { $0.url })
+                        webViewPoolManager.preloadNextURLs(urls)
+                        #if DEBUG
+                        print("☀️ App entering foreground: Resuming preload for \(urls.count) URLs")
+                        #endif
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     checkForSharedURL()
@@ -59,9 +87,11 @@ struct DumFlowApp: App {
         // Connect services to web browser (safe to do before authentication)
         webBrowser.webPageViewModel = webPageViewModel
         webBrowser.browseForwardViewModel = browseForwardViewModel
-        
+        webBrowser.poolManager = webViewPoolManager
+
         // Connect webPageViewModel to browseForwardViewModel
         browseForwardViewModel.setWebPageViewModel(webPageViewModel)
+        browseForwardViewModel.setWebBrowser(webBrowser)
     }
     
     
