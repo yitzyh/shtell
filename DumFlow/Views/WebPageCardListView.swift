@@ -342,12 +342,20 @@ struct WebPageCardListView: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             if displayItems.isEmpty {
-                // Show placeholder while loading
-                HStack(spacing: 16) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        LoadingCardView()
-                    }
+                // Show empty state message
+                VStack(spacing: 12) {
+                    Image(systemName: "square.stack.3d.up.slash")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white.opacity(0.6))
+                    Text("No content available")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Text("Select categories above to see content")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 158)
                 .padding(.horizontal, 20)
             } else {
                 LazyHStack(spacing: 16) {

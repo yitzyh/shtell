@@ -105,7 +105,21 @@ class BrowseForwardViewModel: ObservableObject {
 
     /// Apply category and tag filters - Single method for all filtering
     func applyFilters(selectedCategories: Set<String>, selectedTags: [String: Set<String>]) async {
-        browseForwardLog("🎯 Applying filters - Categories: \(selectedCategories), Tags: \(selectedTags)")
+        print("🎯 applyFilters called with categories: \(selectedCategories)")
+        print("🎯 selectedTags: \(selectedTags)")
+
+        // If no categories selected, use ALL available categories from cache (thread-safe)
+        let categoriesToLoad: Set<String>
+        if selectedCategories.isEmpty {
+            cacheLock.lock()
+            let cachedKeys = Set(categoryCache.keys)
+            cacheLock.unlock()
+
+            categoriesToLoad = cachedKeys
+            print("🌐 No categories selected - showing ALL \(categoriesToLoad.count) cached categories")
+        } else {
+            categoriesToLoad = selectedCategories
+        }
 
         // Store active filters for refresh/reload
         activeFilters = (selectedCategories, selectedTags)
@@ -119,34 +133,44 @@ class BrowseForwardViewModel: ObservableObject {
         do {
             // Step 1: Load all items for selected categories (uses cache when available)
             var allItems: [BrowseForwardItem] = []
+            var itemsByCategory: [String: Int] = [:]
 
-            for category in selectedCategories {
-                // Check cache first
-                if let cached = categoryCache[category], cached.isValid {
-                    browseForwardLog("✅ Using cached \(category): \(cached.items.count) items")
-                    allItems.append(contentsOf: cached.items)
+            for category in categoriesToLoad {
+                print("🔄 Processing category: \(category)")
+                // Check cache first (thread-safe access)
+                if let cachedItems = getCachedItems(for: category) {
+                    print("✅ Using cached \(category): \(cachedItems.count) items")
+                    allItems.append(contentsOf: cachedItems)
+                    itemsByCategory[category] = cachedItems.count
                 } else {
                     // Fetch from API
-                    browseForwardLog("📡 Fetching \(category) from API")
+                    print("📡 Fetching \(category) from API...")
                     let items = try await apiService.fetchBFQueueItems(
                         category: category,
                         isActiveOnly: true,
                         limit: 250
                     )
-                    // Store in cache with category name
-                    categoryCache[category] = CachedCategory(category: category, items: items)
+                    print("📦 Received \(items.count) items for \(category)")
+                    // Store in cache with category name (thread-safe)
+                    setCachedItems(items, for: category)
                     allItems.append(contentsOf: items)
-                    browseForwardLog("💾 Cached \(category): \(items.count) items")
+                    itemsByCategory[category] = items.count
                 }
+                print("📊 Running total after \(category): \(allItems.count) items")
             }
 
-            browseForwardLog("📊 Total items from \(selectedCategories.count) categories: \(allItems.count)")
+            print("📊 FINAL: \(allItems.count) total items from categories: \(itemsByCategory)")
+
+            // Shuffle to mix categories randomly (prevents one category dominating the feed)
+            allItems.shuffle()
+            print("🔀 Shuffled \(allItems.count) items for random mix")
 
             // Step 2: Apply tag filters CLIENT-SIDE (instant!)
             if selectedTags.isEmpty || selectedTags.values.allSatisfy({ $0.isEmpty }) {
                 // No tags selected - show all items from categories
                 displayedItems = allItems
-                browseForwardLog("📊 No tag filters - displaying all \(allItems.count) items")
+                print("📊 No tag filters - displaying all \(allItems.count) items")
+                print("🔍 First 5 items: \(displayedItems.prefix(5).map { $0.title })")
             } else {
                 // Filter by selected tags
                 displayedItems = allItems.filter { item in
@@ -160,7 +184,8 @@ class BrowseForwardViewModel: ObservableObject {
                     // No tag filter for this category = include all items from it
                     return true
                 }
-                browseForwardLog("🏷️ Tag filtered: \(allItems.count) → \(displayedItems.count) items")
+                print("🏷️ Tag filtered: \(allItems.count) → \(displayedItems.count) items")
+                print("🔍 First 5 filtered items: \(displayedItems.prefix(5).map { $0.title })")
             }
 
             // Step 3: Reset slide index for BrowseForward
@@ -360,6 +385,12 @@ class BrowseForwardViewModel: ObservableObject {
         }
 
         browseForwardLog("✅ Preloading complete. Cache size: \(categoryCache.keys.count) categories")
+
+        // Trigger UI update if displayedItems is empty (initial load)
+        if displayedItems.isEmpty {
+            browseForwardLog("🔄 Triggering initial load after preload completion")
+            await applyFilters(selectedCategories: activeFilters.categories, selectedTags: activeFilters.tags)
+        }
     }
 
     /// Get a random saved page URL from user's saved content

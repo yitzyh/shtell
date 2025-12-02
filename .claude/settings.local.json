@@ -12,7 +12,8 @@
       "Bash(rm:*)",
       "Read(//Users/isaacherskowitz/Downloads/iCloud Photos-2/**)",
       "Bash(gh issue edit:*)",
-      "Bash(gh repo list:*)"
+      "Bash(gh repo list:*)",
+      "Bash(time curl:*)"
     ],
     "deny": [],
     "ask": []

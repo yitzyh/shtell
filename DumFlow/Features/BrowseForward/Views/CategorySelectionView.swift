@@ -142,29 +142,30 @@ struct EnhancedBrowseForwardCategorySelector: View {
             loadPreferences()
             loadCategories()
 
-            // Initialize items if empty
+            // Initialize items if empty (auto-navigation happens in onChange)
             if browseForwardViewModel.displayedItems.isEmpty {
                 Task {
                     await browseForwardViewModel.refreshWithPreferences(
                         selectedCategories: Array(selectedCategories),
                         selectedSubcategories: selectedSubcategories
                     )
-
-                    // After first load, auto-navigate to first item
-                    if !browseForwardViewModel.displayedItems.isEmpty {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            webBrowser.browseForward()
-                        }
-                    }
                 }
             } else {
                 // Items already loaded, extract subcategories immediately
                 extractSubcategoriesFromLoadedItems()
             }
         }
-        .onChange(of: browseForwardViewModel.displayedItems) {
+        .onChange(of: browseForwardViewModel.displayedItems) { oldValue, newValue in
             // Extract subcategories whenever items are loaded from API
             extractSubcategoriesFromLoadedItems()
+
+            // Auto-navigate to first item if this is the initial load (empty -> has items)
+            if oldValue.isEmpty && !newValue.isEmpty {
+                print("🚀 Initial content loaded - auto-navigating to first item")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    webBrowser.browseForward()
+                }
+            }
         }
     }
 
@@ -263,11 +264,6 @@ struct EnhancedBrowseForwardCategorySelector: View {
         print("🔘 toggleCategory called for: \(category)")
 
         if selectedCategories.contains(category) {
-            // Prevent deselecting the last category
-            if selectedCategories.count == 1 {
-                print("⚠️ Cannot deselect last category")
-                return
-            }
             print("🔘 DESELECTING \(category)")
             selectedCategories.remove(category)
             // Clean up stale subcategory data
@@ -303,13 +299,9 @@ struct EnhancedBrowseForwardCategorySelector: View {
                 availableCategories = try await BrowseForwardAPIService.shared.getAvailableCategories()
                 print("✅ Loaded \(availableCategories.count) categories")
 
-                // Auto-select all categories if none are selected (prevents blank screen)
-                if selectedCategories.isEmpty && !availableCategories.isEmpty {
-                    print("🎯 No categories selected - auto-selecting all \(availableCategories.count) categories")
-                    selectedCategories = Set(availableCategories)
-                    savePreferences()
-
-                    // Trigger content load with all categories
+                // If no categories selected, trigger load with all categories
+                if selectedCategories.isEmpty {
+                    print("🎯 No categories selected - ViewModel will show all cached categories")
                     await browseForwardViewModel.refreshWithPreferences(
                         selectedCategories: Array(selectedCategories),
                         selectedSubcategories: selectedSubcategories
