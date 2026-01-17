@@ -427,9 +427,7 @@ struct ContentView: View {
                 // Search overlay opened - load items if empty
                 if browseForwardViewModel.displayedItems.isEmpty {
                     print("🔍 DEBUG: displayedItems is empty, loading content...")
-                    Task {
-                        await browseForwardViewModel.refreshWithPreferences(selectedCategories: [], selectedSubcategories: [:])
-                    }
+                    browseForwardViewModel.refreshWithPreferences(selectedCategories: [], selectedSubcategories: [:])
                 }
             } else {
                 // Search overlay closed - clear search state
