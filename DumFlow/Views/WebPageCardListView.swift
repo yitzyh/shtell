@@ -9,7 +9,7 @@ struct BrowseForwardCardView: View {
 
     // Generate thumbnail from URL for known sources
     private var resolvedThumbnailUrl: String {
-        let url = item.url.lowercased()
+        let url = item.url.absoluteString.lowercased()
 
         // Check if thumbnail is a generic favicon (ignore these)
         let isGenericFavicon = (item.thumbnailUrl?.contains("favicon") ?? false) ||
@@ -18,7 +18,7 @@ struct BrowseForwardCardView: View {
 
         // YouTube - ALWAYS try to extract video thumbnail
         if url.contains("youtube.com") || url.contains("youtu.be") {
-            if let videoId = extractYouTubeVideoId(from: item.url) {
+            if let videoId = extractYouTubeVideoId(from: item.url.absoluteString) {
                 // Use sddefault (640×480) for better quality on Retina displays
                 return "https://img.youtube.com/vi/\(videoId)/sddefault.jpg"
             }
@@ -26,7 +26,7 @@ struct BrowseForwardCardView: View {
 
         // Poki games - ALWAYS try to extract game image
         if url.contains("poki.com") {
-            if let slug = extractPokiSlug(from: item.url) {
+            if let slug = extractPokiSlug(from: item.url.absoluteString) {
                 // Increase quality to 92 and size to 800×800 for sharper images
                 return "https://img.poki.com/cdn-cgi/image/quality=92,width=800,height=800,fit=cover,f=auto/\(slug)-icon.png"
             }
@@ -34,7 +34,7 @@ struct BrowseForwardCardView: View {
 
         // Imgur - extract image ID
         if url.contains("imgur.com") {
-            if let imageId = extractImgurId(from: item.url) {
+            if let imageId = extractImgurId(from: item.url.absoluteString) {
                 // Use huge size (1024px) for Retina displays
                 return "https://i.imgur.com/\(imageId)h.jpg"
             }
@@ -121,7 +121,7 @@ struct BrowseForwardCardView: View {
                                     Image(systemName: "globe")
                                         .foregroundColor(.gray)
                                         .font(.title2)
-                                    Text(item.domain)
+                                    Text(item.domain ?? "")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                         .lineLimit(1)
@@ -131,7 +131,7 @@ struct BrowseForwardCardView: View {
                                     Image(systemName: "globe")
                                         .foregroundColor(.gray)
                                         .font(.title2)
-                                    Text(item.domain)
+                                    Text(item.domain ?? "")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                         .lineLimit(1)
@@ -178,7 +178,7 @@ struct BrowseForwardCardView: View {
                                             Image(systemName: "globe")
                                                 .foregroundColor(.gray)
                                                 .font(.title2)
-                                            Text(item.domain)
+                                            Text(item.domain ?? "")
                                                 .font(.caption2)
                                                 .foregroundColor(.secondary)
                                                 .lineLimit(1)
@@ -188,7 +188,7 @@ struct BrowseForwardCardView: View {
                                             Image(systemName: "globe")
                                                 .foregroundColor(.gray)
                                                 .font(.title2)
-                                            Text(item.domain)
+                                            Text(item.domain ?? "")
                                                 .font(.caption2)
                                                 .foregroundColor(.secondary)
                                                 .lineLimit(1)
@@ -243,7 +243,7 @@ struct BrowseForwardCardView: View {
                         Image(systemName: "globe")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.9))
-                        Text(item.domain)
+                        Text(item.domain ?? "")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.9))
                             .lineLimit(1)
@@ -297,7 +297,7 @@ struct BrowseForwardCardView: View {
             }
         )
         .onTapGesture {
-            onTap(item.url)
+            onTap(item.url.absoluteString)
         }
     }
 }
@@ -336,7 +336,7 @@ struct WebPageCardListView: View {
 
     // Always use the unified displayedItems from ViewModel (single source of truth)
     private var displayItems: [BrowseForwardItem] {
-        items ?? browseForwardViewModel.displayedItems
+        items ?? browseForwardViewModel.items
     }
 
     var body: some View {
@@ -378,7 +378,7 @@ struct WebPageCardListView: View {
     }
     
     private func preloadNextCards(from currentItem: BrowseForwardItem) {
-        let cardId = currentItem.url
+        let cardId = currentItem.url.absoluteString
         guard !preloadedCardIds.contains(cardId) else { return }
         preloadedCardIds.insert(cardId)
 

@@ -199,7 +199,7 @@ struct MenuRow: View {
     let webPageViewModel = WebPageViewModel(authViewModel: authViewModel)
     let browseForwardViewModel = BrowseForwardViewModel()
     
-    return ContentViewMenuView(
+    ContentViewMenuView(
         isShowingHistory: .constant(false),
         isShowingSafariView: .constant(false),
         isShowingBrowseForwardPreferences: .constant(false),

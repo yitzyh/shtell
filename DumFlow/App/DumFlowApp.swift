@@ -14,10 +14,10 @@ struct DumFlowApp: App {
     // ✅ Remove persistenceController
     
     @StateObject private var authViewModel: AuthViewModel
-    @StateObject var webBrowser = WebBrowser()
-    @StateObject var webPageViewModel: WebPageViewModel
-    @StateObject var browseForwardViewModel = BrowseForwardViewModel()
-    @StateObject var webViewPoolManager = WebViewPoolManager()
+    @StateObject private var webBrowser = WebBrowser()
+    @StateObject private var webPageViewModel: WebPageViewModel
+    @StateObject private var browseForwardViewModel = BrowseForwardViewModel()
+    @StateObject private var webViewPoolManager = WebViewPoolManager()
     
     init() {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -70,7 +70,7 @@ struct DumFlowApp: App {
                     for: UIApplication.willEnterForegroundNotification)) { _ in
                     // Resume preloading when app comes back to foreground
                     if browseForwardViewModel.isCacheReady {
-                        let urls = Array(browseForwardViewModel.displayedItems.prefix(3).map { $0.url })
+                        let urls = Array(browseForwardViewModel.displayedItems.prefix(3).map { $0.url.absoluteString })
                         webViewPoolManager.preloadNextURLs(urls)
                         #if DEBUG
                         print("☀️ App entering foreground: Resuming preload for \(urls.count) URLs")

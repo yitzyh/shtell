@@ -476,12 +476,12 @@ class WebBrowser: ObservableObject{
 
         #if DEBUG
         if verboseLogging {
-            print("🚀 DEBUG browseForward: Selected URL from filtered displayedItems: \(self.cleanURLForLogging(nextURL))")
+            print("🚀 DEBUG browseForward: Selected URL from filtered displayedItems: \(self.cleanURLForLogging(nextURL.absoluteString))")
         }
         #endif
 
         isForwardNavigation = true
-        urlString = nextURL
+        urlString = nextURL.absoluteString
         isUserInitiatedNavigation = true
 
         // Trigger continuous preloading after navigation
@@ -490,7 +490,7 @@ class WebBrowser: ObservableObject{
 
             if let poolManager = self.poolManager,
                let viewModel = self.browseForwardViewModel {
-                let urls = Array(viewModel.displayedItems.prefix(3).map { $0.url })
+                let urls = Array(viewModel.displayedItems.prefix(3).map { $0.url.absoluteString })
                 poolManager.preloadNextURLs(urls)
 
                 #if DEBUG
