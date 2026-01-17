@@ -62,11 +62,16 @@ class BrowseForwardViewModel: ObservableObject {
     func setWebBrowser(_ browser: Any) {
         // Placeholder for web browser connection
     }
+
+    func refreshWithPreferences() {
+        // Placeholder for preferences refresh
+        loadContent()
+    }
 }
 
 // MARK: - BrowseForwardItem Model
 struct BrowseForwardItem: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID = UUID()
     var url: URL
     var title: String
     var description: String?

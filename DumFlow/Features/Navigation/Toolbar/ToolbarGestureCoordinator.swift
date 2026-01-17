@@ -95,7 +95,7 @@ class ToolbarGestureCoordinator: ObservableObject {
     // Calculate which item was tapped based on location
     // This would be integrated with actual toolbar layout
 
-    provideHapticFeedback(.light)
+    provideHapticFeedback(.selection)
     resetGesture()
   }
 

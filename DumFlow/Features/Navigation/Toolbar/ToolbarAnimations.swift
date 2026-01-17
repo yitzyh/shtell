@@ -162,8 +162,8 @@ struct ElasticBounce: AnimatableModifier {
 
   func body(content: Content) -> some View {
     content
-      .scaleEffect(1 + (sin(progress * .pi * 2) * 0.1))
-      .rotationEffect(.degrees(sin(progress * .pi * 4) * 2))
+      .scaleEffect(1 + (sin(progress * Double.pi * 2) * 0.1))
+      .rotationEffect(.degrees(sin(progress * Double.pi * 4) * 2))
   }
 }
 

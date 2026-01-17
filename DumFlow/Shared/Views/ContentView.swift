@@ -1388,10 +1388,7 @@ struct BrowseForwardCategorySelector: View {
             // Initialize items if empty
             if browseForwardViewModel.displayedItems.isEmpty {
                 Task {
-                    await browseForwardViewModel.refreshWithPreferences(
-                        selectedCategories: Array(selectedCategories),
-                        selectedSubcategories: [:]
-                    )
+                    browseForwardViewModel.refreshWithPreferences()
                 }
             }
         }
@@ -1408,10 +1405,7 @@ struct BrowseForwardCategorySelector: View {
 
         // Auto-refresh content when category changes
         Task {
-            await browseForwardViewModel.refreshWithPreferences(
-                selectedCategories: Array(selectedCategories),
-                selectedSubcategories: [:]
-            )
+            browseForwardViewModel.refreshWithPreferences()
         }
     }
 
