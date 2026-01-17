@@ -197,7 +197,7 @@ class TabPreloadCoordinator: ObservableObject {
 
   private func createWebView(for tabId: UUID) -> WKWebView {
     let configuration = WKWebViewConfiguration()
-    configuration.processPool = SharedWebViewPool.shared.processPool
+    // Note: processPool sharing deprecated in iOS 15+, WebKit handles this automatically
     configuration.websiteDataStore = .default()
     configuration.allowsInlineMediaPlayback = true
     configuration.mediaTypesRequiringUserActionForPlayback = []
