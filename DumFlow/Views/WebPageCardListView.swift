@@ -251,7 +251,7 @@ struct BrowseForwardCardView: View {
                         Spacer()
 
                         // Category tag - with backdrop
-                        Text(item.category ?? item.bfCategory ?? "uncategorized")
+                        Text(item.category)
                             .font(.caption2)
                             .fontWeight(.medium)
                             .foregroundColor(.orange)
@@ -367,7 +367,7 @@ struct WebPageCardListView: View {
                             onTap: onURLTap ?? { _ in }
                         )
                         .onAppear {
-                            print("🎴 Displaying card: \(item.title) | Domain: \(item.domain) | Category: \(item.category ?? "none")")
+                            print("🎴 Displaying card: \(item.title) | Domain: \(item.domain ?? "unknown") | Category: \(item.category)")
                             preloadNextCards(from: item)
                         }
                     }
