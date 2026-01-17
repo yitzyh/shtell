@@ -294,7 +294,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isShowingBrowseForwardPreferences) {
-            BrowseForwardPreferencesView()
+            BrowseForwardPreferencesView(isPresented: $isShowingBrowseForwardPreferences)
                 .environmentObject(browseForwardViewModel)
                 .environmentObject(webBrowser)
                 .presentationDetents([.height(400), .medium])

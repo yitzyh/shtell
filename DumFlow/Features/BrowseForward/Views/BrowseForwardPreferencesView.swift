@@ -34,4 +34,6 @@ struct BrowseForwardPreferences: Codable {
     var enabled: Bool = true
     var autoPlay: Bool = false
     var preloadCount: Int = 3
+    var selectedCategories: Set<String> = ["All"]
+    var selectedSubcategories: [String: Set<String>] = [:]
 }
