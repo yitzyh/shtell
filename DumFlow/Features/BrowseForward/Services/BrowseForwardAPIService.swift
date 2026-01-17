@@ -32,4 +32,14 @@ class BrowseForwardAPIService {
         // Stub refresh
         try await Task.sleep(nanoseconds: 100_000_000)
     }
+
+    func searchContent(query: String, limit: Int = 20) async throws -> [BrowseForwardItem] {
+        // Stub search implementation
+        return []
+    }
+
+    func getAvailableCategories() async throws -> [String] {
+        // Return available categories
+        return ["All", "Science", "Culture", "Entertainment", "News", "Classics"]
+    }
 }

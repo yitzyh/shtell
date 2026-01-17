@@ -63,15 +63,27 @@ class BrowseForwardViewModel: ObservableObject {
         // Placeholder for web browser connection
     }
 
-    func refreshWithPreferences() {
+    func refreshWithPreferences(selectedCategories: Set<String> = [], selectedSubcategories: [String: Set<String>] = [:]) {
         // Placeholder for preferences refresh
         loadContent()
+    }
+
+    func refreshWithPreferences() {
+        // Placeholder for preferences refresh without parameters
+        loadContent()
+    }
+
+    func preloadPopularCategories() async {
+        // Preload popular categories for instant access
+        isLoading = true
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        isLoading = false
     }
 }
 
 // MARK: - BrowseForwardItem Model
 struct BrowseForwardItem: Identifiable, Codable {
-    let id: UUID = UUID()
+    var id = UUID()
     var url: URL
     var title: String
     var description: String?

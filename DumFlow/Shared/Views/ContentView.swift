@@ -419,8 +419,8 @@ struct ContentView: View {
                 }
             }
         }
-        .onChange(of: searchIsFocused) { oldValue, newValue in
-            print("🔍 DEBUG: searchIsFocused changed from \(oldValue) to \(newValue)")
+        .onChange(of: searchIsFocused) { newValue in
+            print("🔍 DEBUG: searchIsFocused changed to \(newValue)")
             print("🔍 DEBUG: displayedItems count = \(browseForwardViewModel.displayedItems.count)")
 
             if newValue {
@@ -1432,8 +1432,7 @@ struct BrowseForwardCategorySelector: View {
 
     private func savePreferences() {
         let preferences = BrowseForwardPreferences(
-            selectedCategories: selectedCategories,
-            lastUpdated: Date()
+            selectedCategories: selectedCategories
         )
         if let data = try? JSONEncoder().encode(preferences) {
             preferencesData = data
