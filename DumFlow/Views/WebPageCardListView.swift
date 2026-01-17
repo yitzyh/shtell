@@ -158,7 +158,7 @@ struct BrowseForwardCardView: View {
                                 .clipped()
                         case .failure:
                             // Thumbnail failed - fallback to favicon
-                            let faviconURL = "https://www.google.com/s2/favicons?domain=\(item.domain)&sz=128"
+                            let faviconURL = "https://www.google.com/s2/favicons?domain=\(item.domain ?? "")&sz=128"
                             ZStack {
                                 Rectangle()
                                     .fill(Color.gray.opacity(0.3))

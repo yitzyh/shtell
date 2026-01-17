@@ -205,7 +205,7 @@ class TabStateManager: NSObject, ObservableObject {
 
   private func createWebView(for tabId: UUID) {
     let configuration = WKWebViewConfiguration()
-    configuration.processPool = WKProcessPool()
+    // processPool deprecated in iOS 15+ - WebKit handles process sharing automatically
     configuration.websiteDataStore = .default()
     configuration.allowsInlineMediaPlayback = true
     configuration.mediaTypesRequiringUserActionForPlayback = []
@@ -322,7 +322,7 @@ class TabStateManager: NSObject, ObservableObject {
 
     // Restore cookies if available
     if let cookiesData = tab.cookiesData,
-       let cookies = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(cookiesData) as? [HTTPCookie] {
+       let cookies = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, HTTPCookie.self], from: cookiesData) as? [HTTPCookie] {
       let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
       cookies.forEach { cookie in
         cookieStore.setCookie(cookie)

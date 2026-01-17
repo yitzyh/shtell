@@ -452,12 +452,9 @@ class WebPageViewModel: ObservableObject, Identifiable {
             guard let self = self else { return }
 
             // Begin background task to protect against app suspension
-            var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
-            await MainActor.run {
-                backgroundTaskID = UIApplication.shared.beginBackgroundTask {
+            let backgroundTaskID = await MainActor.run {
+                UIApplication.shared.beginBackgroundTask {
                     print("⚠️ createWebPageForSave: Background task expired for \(normalizedURLString)")
-                    UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                    backgroundTaskID = .invalid
                 }
             }
 
