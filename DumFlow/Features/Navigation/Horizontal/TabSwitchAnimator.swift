@@ -271,7 +271,7 @@ struct AnimatedTabContainer<Content: View>: View {
     GeometryReader { geometry in
       ZStack {
         ForEach(0..<gestureHandler.tabCount, id: \.self) { index in
-          TabView(index: index) {
+          TabContentView(index: index) {
             content()
           }
           .modifier(TabTransitionModifier(
@@ -291,7 +291,7 @@ struct AnimatedTabContainer<Content: View>: View {
 
 // MARK: - Individual Tab View
 
-struct TabView<Content: View>: View {
+struct TabContentView<Content: View>: View {
   let index: Int
   let content: () -> Content
 
