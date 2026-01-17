@@ -100,7 +100,7 @@ struct BrowseForwardCardView: View {
                 // Check if we have a resolved thumbnail URL
                 if resolvedThumbnailUrl.isEmpty {
                     // No thumbnail URL - show favicon immediately
-                    let faviconURL = "https://www.google.com/s2/favicons?domain=\(item.domain)&sz=128"
+                    let faviconURL = "https://www.google.com/s2/favicons?domain=\(item.domain ?? "")&sz=128"
                     ZStack {
                         Rectangle()
                             .fill(Color.gray.opacity(0.3))

@@ -324,7 +324,7 @@ class TabPreloadCoordinator: ObservableObject {
 
   private func monitorLoadingProgress(for tabId: UUID, webView: WKWebView) {
     // Observe estimated progress
-    let progressObserver = webView.observe(\.estimatedProgress) { [weak self] webView, _ in
+    _ = webView.observe(\.estimatedProgress) { [weak self] webView, _ in
       DispatchQueue.main.async {
         let progress = webView.estimatedProgress
         self?.preloadStatus[tabId] = .loading(progress: progress)
