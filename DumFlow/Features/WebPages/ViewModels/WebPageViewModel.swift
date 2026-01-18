@@ -49,8 +49,10 @@ struct LoadingState {
 
 @MainActor
 class WebPageViewModel: ObservableObject, Identifiable {
-    
-    let publicDatabase = CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+
+    var publicDatabase: CKDatabase {
+        return CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    }
     let authViewModel: AuthViewModel
     private let commentService: CommentService
     let webPageService: WebPageService
