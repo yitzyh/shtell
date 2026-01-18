@@ -22,26 +22,23 @@ struct EnhancedBrowseForwardCategorySelector: View {
     let categories = ["All", "Science", "Culture", "Entertainment", "News", "Classics"]
 
     var body: some View {
-        NavigationView {
-            List(categories, id: \.self) { category in
-                Button(action: {
-                    viewModel.selectCategory(category)
-                    isPresented = false
-                }) {
-                    HStack {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(categories, id: \.self) { category in
+                    Button(action: {
+                        viewModel.selectCategory(category)
+                    }) {
                         Text(category)
-                        Spacer()
-                        if viewModel.selectedCategory == category {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
-                        }
+                            .font(.system(size: 14))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(viewModel.selectedCategory == category ? Color.blue : Color.gray.opacity(0.2))
+                            .foregroundColor(viewModel.selectedCategory == category ? .white : .primary)
+                            .cornerRadius(16)
                     }
                 }
             }
-            .navigationTitle("Select Category")
-            .navigationBarItems(trailing: Button("Done") {
-                isPresented = false
-            })
+            .padding(.horizontal)
         }
     }
 }
