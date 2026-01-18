@@ -51,7 +51,7 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func getNextSlideURL() -> URL? {
-        guard currentItemIndex < items.count - 1 else { return nil }
+        guard !items.isEmpty, currentItemIndex < items.count - 1 else { return nil }
         return items[currentItemIndex + 1].url
     }
 

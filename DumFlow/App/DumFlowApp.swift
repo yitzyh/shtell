@@ -69,7 +69,7 @@ struct DumFlowApp: App {
                 .onReceive(NotificationCenter.default.publisher(
                     for: UIApplication.willEnterForegroundNotification)) { _ in
                     // Resume preloading when app comes back to foreground
-                    if browseForwardViewModel.isCacheReady {
+                    if browseForwardViewModel.isCacheReady && !browseForwardViewModel.displayedItems.isEmpty {
                         let urls = Array(browseForwardViewModel.displayedItems.prefix(3).map { $0.url.absoluteString })
                         webViewPoolManager.preloadNextURLs(urls)
                         #if DEBUG
