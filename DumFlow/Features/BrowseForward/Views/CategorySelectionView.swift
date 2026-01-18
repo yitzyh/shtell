@@ -11,7 +11,7 @@ struct EnhancedBrowseForwardCategorySelector: View {
     @Binding var isPresented: Bool
     @EnvironmentObject var viewModel: BrowseForwardViewModel
 
-    init(isPresented: Binding<Bool> = .constant(false)) {
+    init(isPresented: Binding<Bool>) {
         self._isPresented = isPresented
     }
 

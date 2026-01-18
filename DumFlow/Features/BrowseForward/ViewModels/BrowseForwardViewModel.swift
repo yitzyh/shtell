@@ -83,7 +83,7 @@ class BrowseForwardViewModel: ObservableObject {
 
 // MARK: - BrowseForwardItem Model
 struct BrowseForwardItem: Identifiable, Codable {
-    var id = UUID()
+    var id: UUID
     var url: URL
     var title: String
     var description: String?
@@ -93,7 +93,8 @@ struct BrowseForwardItem: Identifiable, Codable {
     var domain: String?
     var score: Double
 
-    init(url: URL, title: String, category: String, description: String? = nil, imageURL: URL? = nil, thumbnailUrl: String? = nil, score: Double = 0.0) {
+    init(id: UUID = UUID(), url: URL, title: String, category: String, description: String? = nil, imageURL: URL? = nil, thumbnailUrl: String? = nil, score: Double = 0.0) {
+        self.id = id
         self.url = url
         self.title = title
         self.category = category
