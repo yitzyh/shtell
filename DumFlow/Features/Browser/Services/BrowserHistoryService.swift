@@ -14,7 +14,9 @@ import Combine
 class BrowserHistoryService: ObservableObject {
     
     // MARK: - Dependencies
-    private let publicDatabase = CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    private var publicDatabase: CKDatabase {
+        return CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    }
     internal let authViewModel: AuthViewModel
     private var cancellables = Set<AnyCancellable>()
     

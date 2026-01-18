@@ -5,7 +5,9 @@ import CloudKit
 class CommentService: ObservableObject {
     
     // MARK: - Dependencies
-    private let publicDatabase = CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    private var publicDatabase: CKDatabase {
+        return CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    }
     private let authViewModel: AuthViewModel
     
     init(authViewModel: AuthViewModel) {

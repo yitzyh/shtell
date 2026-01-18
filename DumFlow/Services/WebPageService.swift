@@ -7,7 +7,9 @@ import Combine
 class WebPageService: ObservableObject {
     
     // MARK: - Dependencies
-    private let publicDatabase = CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    private var publicDatabase: CKDatabase {
+        return CKContainer(identifier: "iCloud.com.yitzy.DumFlow").publicCloudDatabase
+    }
     private let authViewModel: AuthViewModel
     private weak var webPageViewModel: WebPageViewModel?
     private var cancellables = Set<AnyCancellable>()
