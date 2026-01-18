@@ -419,7 +419,7 @@ struct ContentView: View {
                 }
             }
         }
-        .onChange(of: searchIsFocused) { newValue in
+        .onChange(of: searchIsFocused) { oldValue, newValue in
             print("🔍 DEBUG: searchIsFocused changed to \(newValue)")
             print("🔍 DEBUG: displayedItems count = \(browseForwardViewModel.displayedItems.count)")
 

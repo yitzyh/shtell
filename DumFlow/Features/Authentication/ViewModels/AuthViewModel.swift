@@ -63,7 +63,10 @@ final class AuthViewModel: ObservableObject {
 
     // ✅ UPDATED: Simplified init - no Core Data context parameter
     init() {
-        restoreSession()
+        // Defer restoreSession to avoid blocking init
+        DispatchQueue.main.async { [weak self] in
+            self?.restoreSession()
+        }
     }
     
     /// Returns a SwiftUI SignInWithAppleButton.

@@ -22,19 +22,21 @@ struct DumFlowApp: App {
     init() {
         let startTime = CFAbsoluteTimeGetCurrent()
         print("🚀 DumFlowApp init started")
-        
+
+        print("🚀 Creating AuthViewModel...")
         // ✅ Use pure CloudKit setup
         let authStart = CFAbsoluteTimeGetCurrent()
         let auth = AuthViewModel()
         _authViewModel = StateObject(wrappedValue: auth)
         print("🚀 AuthViewModel init took: \(CFAbsoluteTimeGetCurrent() - authStart)s")
 
+        print("🚀 Creating WebPageViewModel...")
         let pageVMStart = CFAbsoluteTimeGetCurrent()
         let pageVM = WebPageViewModel(authViewModel: auth)
         _webPageViewModel = StateObject(wrappedValue: pageVM)
         print("🚀 WebPageViewModel init took: \(CFAbsoluteTimeGetCurrent() - pageVMStart)s")
-        
-        
+
+
         print("🚀 DumFlowApp init completed in: \(CFAbsoluteTimeGetCurrent() - startTime)s")
     }
     
