@@ -57,11 +57,16 @@ class WebPageViewModel: ObservableObject, Identifiable {
     let browserHistoryService: BrowserHistoryService
 
     init(authViewModel: AuthViewModel) {
+        print("📝 WebPageViewModel init: Starting")
         self.authViewModel = authViewModel
+        print("📝 WebPageViewModel init: Creating CommentService")
         self.commentService = CommentService(authViewModel: authViewModel)
+        print("📝 WebPageViewModel init: Creating WebPageService")
         self.webPageService = WebPageService(authViewModel: authViewModel)
+        print("📝 WebPageViewModel init: Creating BrowserHistoryService")
         self.browserHistoryService = BrowserHistoryService(authViewModel: authViewModel)
-        
+
+        print("📝 WebPageViewModel init: Setting up Combine subscription")
         // Load data when user signs in (dependency injection)
         authViewModel.$signedInUser
             .compactMap { $0 } // Only when user is not nil
@@ -69,6 +74,7 @@ class WebPageViewModel: ObservableObject, Identifiable {
                 self?.loadAllUserData(for: user)
             }
             .store(in: &cancellables)
+        print("📝 WebPageViewModel init: Completed")
     }
     
     // MARK: - Like Status Persistence
