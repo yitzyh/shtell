@@ -489,7 +489,8 @@ class WebBrowser: ObservableObject{
             try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s delay
 
             if let poolManager = self.poolManager,
-               let viewModel = self.browseForwardViewModel {
+               let viewModel = self.browseForwardViewModel,
+               !viewModel.displayedItems.isEmpty {
                 let urls = Array(viewModel.displayedItems.prefix(3).map { $0.url.absoluteString })
                 poolManager.preloadNextURLs(urls)
 
