@@ -60,6 +60,9 @@ class BrowseForwardViewModel: ObservableObject {
     func navigateToNext() {
         if currentItemIndex < items.count - 1 {
             currentItemIndex += 1
+        } else {
+            // Loop back to beginning
+            currentItemIndex = 0
         }
     }
 

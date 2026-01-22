@@ -474,6 +474,9 @@ class WebBrowser: ObservableObject{
             return
         }
 
+        // Move to next item for future navigation
+        browseForwardViewModel.navigateToNext()
+
         #if DEBUG
         if verboseLogging {
             print("🚀 DEBUG browseForward: Selected URL from filtered displayedItems: \(self.cleanURLForLogging(nextURL.absoluteString))")
