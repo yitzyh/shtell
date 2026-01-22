@@ -52,13 +52,13 @@ private struct SimulatorHelper {
 @MainActor
 class WebBrowser: ObservableObject{
 
-    @Published var urlString = ""
+    @Published var urlString = "https://www.apple.com"
         {
             didSet {
             }
         }
     @Published var pageTitle: String?
-    @Published var isUserInitiatedNavigation = false
+    @Published var isUserInitiatedNavigation = true
     @Published var canGoBack: Bool = false
     @Published var canGoForward: Bool = false
     @Published var loadingProgress: Double = 0.0
