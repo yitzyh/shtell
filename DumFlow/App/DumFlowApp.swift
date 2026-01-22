@@ -94,6 +94,12 @@ struct DumFlowApp: App {
         // Connect webPageViewModel to browseForwardViewModel
         browseForwardViewModel.setWebPageViewModel(webPageViewModel)
         browseForwardViewModel.setWebBrowser(webBrowser)
+
+        // Load the first BrowseForward item on launch
+        if let firstItem = browseForwardViewModel.displayedItems.first {
+            webBrowser.urlString = firstItem.url.absoluteString
+            webBrowser.isUserInitiatedNavigation = true
+        }
     }
     
     

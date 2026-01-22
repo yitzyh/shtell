@@ -52,7 +52,7 @@ private struct SimulatorHelper {
 @MainActor
 class WebBrowser: ObservableObject{
 
-    @Published var urlString = "https://www.apple.com"
+    @Published var urlString = ""
         {
             didSet {
             }
