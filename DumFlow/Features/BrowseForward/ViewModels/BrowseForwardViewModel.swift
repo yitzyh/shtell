@@ -21,14 +21,8 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     init() {
-        // Initialize with sample data for testing
-        #if DEBUG
+        // Initialize with better sample data for testing
         items = [
-            BrowseForwardItem(
-                url: URL(string: "https://en.wikipedia.org/wiki/Special:Random")!,
-                title: "Random Wikipedia Article",
-                category: "All"
-            ),
             BrowseForwardItem(
                 url: URL(string: "https://news.ycombinator.com")!,
                 title: "Hacker News",
@@ -38,9 +32,23 @@ class BrowseForwardViewModel: ObservableObject {
                 url: URL(string: "https://www.reddit.com/r/programming")!,
                 title: "Programming Reddit",
                 category: "Science"
+            ),
+            BrowseForwardItem(
+                url: URL(string: "https://arstechnica.com")!,
+                title: "Ars Technica",
+                category: "Science"
+            ),
+            BrowseForwardItem(
+                url: URL(string: "https://www.theverge.com")!,
+                title: "The Verge",
+                category: "Entertainment"
+            ),
+            BrowseForwardItem(
+                url: URL(string: "https://kottke.org")!,
+                title: "Kottke.org",
+                category: "Culture"
             )
         ]
-        #endif
     }
 
     func loadContent() {
