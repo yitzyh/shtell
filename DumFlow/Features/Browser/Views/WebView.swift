@@ -843,26 +843,30 @@ struct WebView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
-
-            if webBrowser.isUserInitiatedNavigation {
-                // SPLASH SCREEN DISABLED
-                // if webBrowser.urlString.hasPrefix("shtell://") {
-                //     // Load splash screen for shtell://beta
-                //     let splashHTML = webBrowser.getSplashScreenHTML()
-                //     uiView.loadHTMLString(splashHTML, baseURL: URL(string: webBrowser.urlString))
-                // } else if let url = URL(string: webBrowser.urlString) {
-                //     uiView.load(URLRequest(url: url))
-                // }
+            // Check if we need to load a new URL
+            if webBrowser.isUserInitiatedNavigation && !webBrowser.urlString.isEmpty {
+                print("🌐 WebView: Loading URL: \(webBrowser.urlString)")
 
                 // Just load the URL directly
                 if let url = URL(string: webBrowser.urlString) {
                     uiView.load(URLRequest(url: url))
+                    print("🌐 WebView: URLRequest sent to WKWebView")
+                } else {
+                    print("⚠️ WebView: Invalid URL: \(webBrowser.urlString)")
                 }
 
                 Task { @MainActor in
                     webBrowser.isUserInitiatedNavigation = false
                 }
-
+            } else if webBrowser.urlString.isEmpty && uiView.url == nil {
+                // First launch with empty URL - load default content
+                print("🌐 WebView: No URL set, loading default")
+                if let firstItem = webBrowser.browseForwardViewModel?.displayedItems.first {
+                    if let url = URL(string: firstItem.url.absoluteString) {
+                        uiView.load(URLRequest(url: url))
+                        print("🌐 WebView: Loaded first BrowseForward item")
+                    }
+                }
             }
     }
     
