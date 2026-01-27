@@ -190,6 +190,9 @@ class WebPageViewModel: ObservableObject, Identifiable {
     
     // MARK: - Core WebPage Logic
     func loadWebPageCK() {
+          // Disable CloudKit for now to prevent crashes
+          return
+
           guard let urlString = urlString?.normalizedURL else { return }
 
           // ✅ ONLY LOAD existing webpage, don't create
