@@ -121,7 +121,7 @@ class ActionViewController: UIViewController {
         NSLog("🟢 Saving URL: \(urlString)")
         
         // Try file-based approach using App Group container
-        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yitzy.DumFlow") else {
+        guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yitzy.Shtell") else {
             NSLog("🔴 Failed to get App Group container URL")
             
             // Fallback: Try UserDefaults without App Group

@@ -47,15 +47,7 @@ struct ContentView: View {
         NavigationStack{
             //WebView()
             ZStack{
-                WebView(
-                    scrollProgress: $scrollProgress,
-                    onQuoteText: { quotedText, selector, offset in
-                        handleQuoteText(quotedText, selector, offset)
-                    },
-                    onCommentTap: { commentID in
-                        handleCommentTap(commentID)
-                    }
-                )
+                VerticalNavigationView()
                 .ignoresSafeArea()
                 .environmentObject(webBrowser)
                 .environmentObject(browseForwardViewModel)
@@ -63,11 +55,9 @@ struct ContentView: View {
                 .onAppear {
                     webBrowser.webPageViewModel = webPageViewModel
                     webBrowser.browseForwardViewModel = browseForwardViewModel
-                    // webPageViewModel.fetchNewsAPIURLs() // Commented out due to rate limits
                 }
                 .onChange(of: webBrowser.urlString){ _, newURL in
-//                    webPageViewModel.webBrowserFetch(for: webBrowser.urlString.normalizedURL ?? "poop")
-                    webPageViewModel.urlString = newURL   // triggers didSet → loadWebPageCK → fetchCommentsCK
+                    webPageViewModel.urlString = newURL
                     searchBarText = webBrowser.urlString
                 }
                 
@@ -1492,6 +1482,7 @@ struct LiquidGlassCategoryButton: View {
 struct BrowseForwardButton: View {
     @ObservedObject var webBrowser: WebBrowser
     @Binding var isShowingBrowseForwardPreferences: Bool
+    @EnvironmentObject var browseForwardViewModel: BrowseForwardViewModel
 
     @State private var rotationAngle: Double = 0
     @State private var targetRotation: Double = 0
@@ -1533,13 +1524,14 @@ struct BrowseForwardButton: View {
 
     private func handleTap() {
         if webBrowser.canGoForward {
-            // Standard forward navigation - no haptics
             webBrowser.goForward()
         } else {
-            // BrowseForward - vibrate for special action
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
-            webBrowser.browseForward()
+            let items = browseForwardViewModel.displayedItems
+            guard !items.isEmpty else { return }
+            let next = (browseForwardViewModel.currentItemIndex + 1) % items.count
+            browseForwardViewModel.currentItemIndex = next
         }
     }
 

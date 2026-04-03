@@ -75,7 +75,6 @@ class WebBrowser: ObservableObject{
     weak var wkWebView: WKWebView?
     weak var webPageViewModel: WebPageViewModel?
     weak var browseForwardViewModel: BrowseForwardViewModel?
-    weak var poolManager: WebViewPoolManager?
     var readerModeSettings = ReaderModeSettings()
 
 
@@ -487,24 +486,6 @@ class WebBrowser: ObservableObject{
         urlString = nextURL.absoluteString
         isUserInitiatedNavigation = true
 
-        // Trigger continuous preloading after navigation
-        Task.detached { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s delay
-
-            if let poolManager = self.poolManager,
-               let viewModel = self.browseForwardViewModel,
-               !viewModel.displayedItems.isEmpty {
-                let urls = Array(viewModel.displayedItems.prefix(3).map { $0.url.absoluteString })
-                poolManager.preloadNextURLs(urls)
-
-                #if DEBUG
-                let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
-                if verboseLogging {
-                    print("🔄 BrowseForward: Triggered continuous preloading for \(urls.count) URLs")
-                }
-                #endif
-            }
-        }
     }
     
     // Reset WebView to fix simulator networking issues
@@ -703,25 +684,7 @@ struct WebView: UIViewRepresentable {
 
 
     func makeUIView(context: Context) -> WKWebView {
-        // Check pool for preloaded WebView first
-        if let poolManager = webBrowser.poolManager,
-           !webBrowser.urlString.isEmpty,
-           !webBrowser.urlString.hasPrefix("data:"),
-           !webBrowser.urlString.hasPrefix("shtell://") {
-            if let preloadedWebView = poolManager.getPreloadedWebView(for: webBrowser.urlString) {
-                #if DEBUG
-                let verboseLogging = ProcessInfo.processInfo.environment["BROWSE_FORWARD_VERBOSE"] == "1"
-                if verboseLogging {
-                    print("✅ WebView: Using preloaded WebView for \(webBrowser.urlString)")
-                }
-                #endif
-
-                setupPreloadedWebView(preloadedWebView, context: context)
-                return preloadedWebView
-            }
-        }
-
-        // Fall back to normal WebView creation
+        // Normal WebView creation
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.allowsPictureInPictureMediaPlayback = true

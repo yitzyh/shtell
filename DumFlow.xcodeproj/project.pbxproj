@@ -75,6 +75,7 @@
 		6DB7F5682C38494D008E16CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6DCACFB42DF4AC9400CF361E /* DumFlowShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DumFlowShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6DD4541F2E32925E0065A409 /* WikipediaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WikipediaService.swift; sourceTree = "<group>"; };
+		6DF5C20E2F7F478100D06DB6 /* DumFlowRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DumFlowRelease.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -218,6 +219,7 @@
 		6D7D6FA22BDEEBAF002DF0C9 /* DumFlow */ = {
 			isa = PBXGroup;
 			children = (
+				6DF5C20E2F7F478100D06DB6 /* DumFlowRelease.entitlements */,
 				6D48CFB72E6D2EBF00E87D7D /* TrendPageViewSFSymbols.swift */,
 				6D3202D22E2FE9EF00FAEE97 /* App */,
 				6D3202D32E2FE9FF00FAEE97 /* Core */,
@@ -522,12 +524,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = DumFlow/DumFlow.entitlements;
+				CODE_SIGN_ENTITLEMENTS = DumFlow/DumFlowRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = SA8Y57H242;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
