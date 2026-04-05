@@ -41,13 +41,15 @@ struct VerticalNavigationView: View {
 
     private func makeSlots(screenHeight: CGFloat) -> [Slot] {
         var slots: [Slot] = []
-        if let wv = pool.getPrevWebView() {
+        // Next sits ABOVE (-H): pull down brings it in from the top.
+        // Prev sits BELOW (+H): kept for button-driven back navigation.
+        if let wv = pool.getNextWebView() {
             slots.append(Slot(webView: wv, baseOffset: -screenHeight, isCurrent: false))
         }
         if let wv = pool.getCurrentWebView() {
             slots.append(Slot(webView: wv, baseOffset: 0, isCurrent: true))
         }
-        if let wv = pool.getNextWebView() {
+        if let wv = pool.getPrevWebView() {
             slots.append(Slot(webView: wv, baseOffset: screenHeight, isCurrent: false))
         }
         return slots
@@ -64,20 +66,16 @@ struct VerticalNavigationView: View {
                         onDragChanged: slot.isCurrent ? { dy in
                             guard !isTransitioning else { return }
                             let hasNext = browseForwardViewModel.currentItemIndex < browseForwardViewModel.displayedItems.count - 1
-                            let hasPrev = browseForwardViewModel.currentItemIndex > 0
-                            if dy < 0 && hasNext {
-                                dragOffset = dy * 0.35
-                            } else if dy > 0 && hasPrev && pool.isAtTopOfCurrentPage {
+                            // Pull DOWN from top → next item. Normal in-page scroll is unaffected
+                            // because we only respond when at the very top of the page.
+                            if dy > 0 && hasNext && pool.isAtTopOfCurrentPage {
                                 dragOffset = dy * 0.35
                             }
                         } : nil,
                         onDragEnded: slot.isCurrent ? { dy, vy in
                             let hasNext = browseForwardViewModel.currentItemIndex < browseForwardViewModel.displayedItems.count - 1
-                            let hasPrev = browseForwardViewModel.currentItemIndex > 0
-                            if (dy < -distanceThreshold || vy < -velocityThreshold) && hasNext {
+                            if (dy > distanceThreshold || vy > velocityThreshold) && hasNext && pool.isAtTopOfCurrentPage {
                                 commitNext(screenHeight: geometry.size.height)
-                            } else if (dy > distanceThreshold || vy > velocityThreshold) && hasPrev && pool.isAtTopOfCurrentPage {
-                                commitPrev(screenHeight: geometry.size.height)
                             } else {
                                 snapBack()
                             }
@@ -105,6 +103,12 @@ struct VerticalNavigationView: View {
             if new > old { navigatePoolForward(steps: new - old) }
             else if new < old { navigatePoolBackward(steps: old - new) }
         }
+        // When the API replaces the items array, reset the pool so it loads
+        // the new URLs instead of the old hardcoded ones.
+        .onChange(of: browseForwardViewModel.items) { _, newItems in
+            guard !newItems.isEmpty, !isTransitioning else { return }
+            pool.reinitializeWebViews()
+        }
     }
 
     // MARK: - Navigation
@@ -113,7 +117,7 @@ struct VerticalNavigationView: View {
         guard !isTransitioning else { return }
         isTransitioning = true
         withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
-            dragOffset = -screenHeight
+            dragOffset = screenHeight
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
             pool.navigateToNext()

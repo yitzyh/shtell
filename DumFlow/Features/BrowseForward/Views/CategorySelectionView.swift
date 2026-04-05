@@ -2,8 +2,6 @@
 //  CategorySelectionView.swift
 //  DumFlow
 //
-//  Stub implementation for category selection
-//
 
 import SwiftUI
 
@@ -19,16 +17,31 @@ struct EnhancedBrowseForwardCategorySelector: View {
         self._isPresented = .constant(false)
     }
 
-    let categories = ["All", "Science", "Culture", "Entertainment", "News", "Classics"]
+    /// Maps raw API category keys → human-readable labels.
+    private static let displayName: [String: String] = [
+        "All": "All",
+        "technology": "Tech",
+        "webgames": "Games",
+        "news": "News",
+        "movies": "Movies",
+        "food": "Food",
+        "wikipedia": "Wiki",
+        "youtube": "Video",
+        "Short Reads": "Short Reads"
+    ]
+
+    private func label(for category: String) -> String {
+        Self.displayName[category] ?? category.capitalized
+    }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
-                ForEach(categories, id: \.self) { category in
+                ForEach(viewModel.availableCategories, id: \.self) { category in
                     Button(action: {
                         viewModel.selectCategory(category)
                     }) {
-                        Text(category)
+                        Text(label(for: category))
                             .font(.system(size: 14))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)

@@ -15,54 +15,54 @@ class BrowseForwardViewModel: ObservableObject {
     @Published var selectedCategory: String = "All"
     @Published var currentItemIndex: Int = 0
     @Published var isCacheReady = false
+    @Published var availableCategories: [String] = ["All"]
 
     var displayedItems: [BrowseForwardItem] {
         return items
     }
 
     init() {
-        // Initialize with better sample data for testing
-        items = [
-            BrowseForwardItem(
-                url: URL(string: "https://news.ycombinator.com")!,
-                title: "Hacker News",
-                category: "News"
-            ),
-            BrowseForwardItem(
-                url: URL(string: "https://www.reddit.com/r/programming")!,
-                title: "Programming Reddit",
-                category: "Science"
-            ),
-            BrowseForwardItem(
-                url: URL(string: "https://arstechnica.com")!,
-                title: "Ars Technica",
-                category: "Science"
-            ),
-            BrowseForwardItem(
-                url: URL(string: "https://www.theverge.com")!,
-                title: "The Verge",
-                category: "Entertainment"
-            ),
-            BrowseForwardItem(
-                url: URL(string: "https://kottke.org")!,
-                title: "Kottke.org",
-                category: "Culture"
-            )
-        ]
-    }
-
-    func loadContent() {
-        // Placeholder for content loading
+        items = []
         isLoading = true
         Task {
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            isLoading = false
+            async let cats: () = loadCategories()
+            async let content: () = loadContent()
+            _ = await (cats, content)
         }
+    }
+
+    func loadCategories() async {
+        do {
+            availableCategories = try await BrowseForwardAPIService.shared.fetchCategories()
+        } catch {
+            print("❌ BrowseForwardViewModel: Categories fetch failed (\(error))")
+        }
+    }
+
+    func loadContent() async {
+        isLoading = true
+        do {
+            let fetched = try await BrowseForwardAPIService.shared.fetchContent(category: selectedCategory)
+            // Reset index before items so both @Published changes are batched
+            // into a single ContentView re-render, preventing FocusState disruption.
+            currentItemIndex = 0
+            items = fetched
+            print("✅ BrowseForwardViewModel: Loaded \(fetched.count) items from API")
+        } catch {
+            print("❌ BrowseForwardViewModel: API failed (\(error)), using fallback items")
+            currentItemIndex = 0
+            items = [
+                BrowseForwardItem(url: URL(string: "https://news.ycombinator.com")!, title: "Hacker News", category: "News"),
+                BrowseForwardItem(url: URL(string: "https://arstechnica.com")!, title: "Ars Technica", category: "Science"),
+                BrowseForwardItem(url: URL(string: "https://kottke.org")!, title: "Kottke.org", category: "Culture")
+            ]
+        }
+        isLoading = false
     }
 
     func selectCategory(_ category: String) {
         selectedCategory = category
-        loadContent()
+        Task { await loadContent() }
     }
 
     func navigateToNext() {
@@ -94,13 +94,11 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func refreshWithPreferences(selectedCategories: Set<String> = [], selectedSubcategories: [String: Set<String>] = [:]) {
-        // Placeholder for preferences refresh
-        loadContent()
+        Task { await loadContent() }
     }
 
     func refreshWithPreferences() {
-        // Placeholder for preferences refresh without parameters
-        loadContent()
+        Task { await loadContent() }
     }
 
     func preloadPopularCategories() async {
@@ -112,7 +110,7 @@ class BrowseForwardViewModel: ObservableObject {
 }
 
 // MARK: - BrowseForwardItem Model
-struct BrowseForwardItem: Identifiable, Codable {
+struct BrowseForwardItem: Identifiable, Codable, Equatable {
     var id: UUID
     var url: URL
     var title: String

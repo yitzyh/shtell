@@ -94,7 +94,6 @@ struct ContentView: View {
                                 items: searchResults
                             )
                             .environmentObject(webBrowser)
-                            .environmentObject(browseForwardViewModel)
                             .environmentObject(webPageViewModel)
                             .frame(height: 158)
                         } else if showNoResults {
@@ -112,33 +111,27 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity)
                         } else {
                             // Transitioning - show default queue
-                            WebPageCardListView(
-                                commentsUrlString: .constant(nil),
-                                onURLTap: { urlString in
+                            BrowseQueueCards(
+                                items: browseForwardViewModel.items,
+                                pageBackgroundIsDark: webBrowser.pageBackgroundIsDark,
+                                onTap: { urlString in
                                     searchIsFocused = false
                                     normalizeAndLoads(urlString)
-                                },
-                                items: nil
+                                }
                             )
-                            .environmentObject(webBrowser)
-                            .environmentObject(browseForwardViewModel)
-                            .environmentObject(webPageViewModel)
-                            .frame(height: 158)
+                            .equatable()
                         }
                     } else {
                         // Show default browse queue
-                        WebPageCardListView(
-                            commentsUrlString: .constant(nil),
-                            onURLTap: { urlString in
+                        BrowseQueueCards(
+                            items: browseForwardViewModel.items,
+                            pageBackgroundIsDark: webBrowser.pageBackgroundIsDark,
+                            onTap: { urlString in
                                 searchIsFocused = false
                                 normalizeAndLoads(urlString)
-                            },
-                            items: nil
+                            }
                         )
-                        .environmentObject(webBrowser)
-                        .environmentObject(browseForwardViewModel)
-                        .environmentObject(webPageViewModel)
-                        .frame(height: 158)
+                        .equatable()
                     }
                     Spacer()
                         .frame(height: 12)
@@ -444,18 +437,19 @@ struct ContentView: View {
                         HStack(spacing: 0) {
                             // Back button - disappears first (0.0 to 0.33)
                             if scrollProgress < 0.33 {
-                                Button { 
-                                    webBrowser.goBack()
+                                let canGoBack = webBrowser.canGoBack || browseForwardViewModel.currentItemIndex > 0
+                                Button {
+                                    handleBackTap()
                                 } label: {
                                     Image(systemName: "arrow.left")
-                                        .foregroundColor(webBrowser.canGoBack ? (webBrowser.pageBackgroundIsDark ? .white : .black) : .gray)
+                                        .foregroundColor(canGoBack ? (webBrowser.pageBackgroundIsDark ? .white : .black) : .gray)
                                         .font(.system(size: 22, weight: .medium))
                                         .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
                                         .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
                                 }
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
-                                .disabled(!webBrowser.canGoBack)
+                                .disabled(!canGoBack)
                                 .opacity(max(0, 1.0 - (scrollProgress * CGFloat(3))))
                                 .scaleEffect(max(0.5, 1.0 - (scrollProgress * CGFloat(1.5))))
                             }
@@ -670,6 +664,16 @@ struct ContentView: View {
     }
     
     // MARK: - Save Handler
+    private func handleBackTap() {
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        if webBrowser.canGoBack {
+            webBrowser.goBack()
+        } else if browseForwardViewModel.currentItemIndex > 0 {
+            browseForwardViewModel.currentItemIndex -= 1
+        }
+    }
+
     private func handleSaveButtonTap() {
         guard authViewModel.signedInUser != nil else {
             isShowingSignIn = true
@@ -1530,7 +1534,7 @@ struct BrowseForwardButton: View {
             impactFeedback.impactOccurred()
             let items = browseForwardViewModel.displayedItems
             guard !items.isEmpty else { return }
-            let next = (browseForwardViewModel.currentItemIndex + 1) % items.count
+            let next = min(browseForwardViewModel.currentItemIndex + 1, items.count - 1)
             browseForwardViewModel.currentItemIndex = next
         }
     }

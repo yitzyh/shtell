@@ -13,6 +13,7 @@ class PreloadedWebViewManager: ObservableObject {
     private var webViewPool: [WebViewWrapper] = []
     private let maxPreloadCount = 4 // Current + Next 2 + Previous 1
     private var scrollMonitorCancellable: AnyCancellable?
+    private var canGoBackObserver: NSKeyValueObservation?
 
     // MARK: - Dependencies
     private weak var browseForwardViewModel: BrowseForwardViewModel?
@@ -159,10 +160,6 @@ class PreloadedWebViewManager: ObservableObject {
         let itemIndex = webViewPool[currentIndex].itemIndex
         guard itemIndex < items.count else { return }
 
-        let url = items[itemIndex].url
-        webBrowser?.urlString = url.absoluteString
-        webBrowser?.isUserInitiatedNavigation = true
-
         print("⬅️ PreloadedWebViewManager: Navigating back to item \(itemIndex)")
     }
 
@@ -174,46 +171,87 @@ class PreloadedWebViewManager: ObservableObject {
             return
         }
 
-        // If pool is empty, try to initialize it now
         if webViewPool.isEmpty {
             print("⚠️ PreloadedWebViewManager: Pool was empty, initializing now")
             initializeWebViews()
-            return // Don't navigate on first initialization
+            return
         }
 
-        // Guard against invalid current index
         guard currentIndex < webViewPool.count else {
             print("❌ PreloadedWebViewManager.navigateToNext: Invalid currentIndex \(currentIndex), pool size: \(webViewPool.count)")
             return
         }
 
-        // Calculate next index with looping
-        let nextItemIndex = (webViewPool[currentIndex].itemIndex + 1) % items.count
+        let nextItemIndex = webViewPool[currentIndex].itemIndex + 1
+        guard nextItemIndex < items.count else { return }
 
         print("➡️ PreloadedWebViewManager: Navigating from item \(webViewPool[currentIndex].itemIndex) to \(nextItemIndex)")
 
-        // Move to next WebView if available
+        // Advance into the next slot (already preloaded) or fallback-create one
         if currentIndex + 1 < webViewPool.count {
             currentIndex += 1
         } else {
-            // Need to recycle WebViews
-            recycleWebViewsForward(targetItemIndex: nextItemIndex)
+            // Preloading fell behind — create on demand
+            let webView = createWebView()
+            let coordinator = WebViewCoordinator(webView: webView)
+            var wrapper = WebViewWrapper(webView: webView, coordinator: coordinator, itemIndex: nextItemIndex)
+            webView.load(URLRequest(url: items[nextItemIndex].url))
+            wrapper.isLoaded = true
+            webViewPool.append(wrapper)
+            currentIndex = webViewPool.count - 1
         }
 
-        // Preload next WebView if needed
+        // Sliding window: keep at most 1 item behind currentIndex so there is
+        // always room in the pool for preloading 2 items ahead.
+        while currentIndex > 1 {
+            webViewPool.removeFirst()
+            currentIndex -= 1
+        }
+
         preloadNextWebView()
-
-        // Clean up old WebViews
-        releaseOldWebViews()
-
-        // Update scroll monitoring for new current WebView
         updateScrollMonitoring()
 
-        // Update the browser URL
-        if let url = items[safe: nextItemIndex]?.url {
+        if let url = items[safe: webViewPool[currentIndex].itemIndex]?.url {
             webBrowser?.urlString = url.absoluteString
-            webBrowser?.isUserInitiatedNavigation = true
         }
+    }
+
+    /// Re-initializes the pool with the current items from the ViewModel.
+    /// Reuses existing WKWebViews (just loads new URLs) to avoid inserting new
+    /// UIKit views into the hierarchy, which would steal keyboard focus.
+    func reinitializeWebViews() {
+        guard let items = browseForwardViewModel?.displayedItems, !items.isEmpty else { return }
+
+        scrollMonitorCancellable?.cancel()
+        currentIndex = 0
+        isAtTopOfCurrentPage = true
+
+        let slotsToFill = min(3, items.count)
+
+        // Reuse existing WebViews — just point them at new URLs
+        for i in 0..<min(slotsToFill, webViewPool.count) {
+            webViewPool[i].itemIndex = i
+            webViewPool[i].isLoaded = true
+            webViewPool[i].webView.load(URLRequest(url: items[i].url))
+        }
+
+        // Trim any excess pool slots
+        if webViewPool.count > slotsToFill {
+            webViewPool.removeLast(webViewPool.count - slotsToFill)
+        }
+
+        // Create new WebViews only if the pool was smaller than needed
+        for i in webViewPool.count..<slotsToFill {
+            let webView = createWebView()
+            let coordinator = WebViewCoordinator(webView: webView)
+            var wrapper = WebViewWrapper(webView: webView, coordinator: coordinator, itemIndex: i)
+            webView.load(URLRequest(url: items[i].url))
+            wrapper.isLoaded = true
+            webViewPool.append(wrapper)
+        }
+
+        updateScrollMonitoring()
+        print("🔄 PreloadedWebViewManager: Re-initialized pool with new items")
     }
 
     // MARK: - Private Methods
@@ -244,33 +282,22 @@ class PreloadedWebViewManager: ObservableObject {
         let nextItemsToPreload = 2 // Preload next 2 items
 
         for offset in 1...nextItemsToPreload {
+            let targetItemIndex = currentItemIndex + offset
+            guard targetItemIndex < items.count else { break }
+
             let preloadIndex = currentIndex + offset
 
-            // Check if we already have this WebView in pool
             if preloadIndex < webViewPool.count {
-                // WebView exists, check if it has the right content
-                let expectedItemIndex = (currentItemIndex + offset) % items.count
-                if webViewPool[preloadIndex].itemIndex != expectedItemIndex {
-                    // Wrong content, reload it
-                    loadWebView(at: preloadIndex, withItemIndex: expectedItemIndex)
+                if webViewPool[preloadIndex].itemIndex != targetItemIndex {
+                    loadWebView(at: preloadIndex, withItemIndex: targetItemIndex)
                 }
             } else if webViewPool.count < maxPreloadCount {
-                // Create new WebView
-                let itemIndex = (currentItemIndex + offset) % items.count
                 let webView = createWebView()
                 let coordinator = WebViewCoordinator(webView: webView)
-
-                var wrapper = WebViewWrapper(
-                    webView: webView,
-                    coordinator: coordinator,
-                    itemIndex: itemIndex
-                )
-
-                let url = items[itemIndex].url
-                webView.load(URLRequest(url: url))
+                var wrapper = WebViewWrapper(webView: webView, coordinator: coordinator, itemIndex: targetItemIndex)
+                webView.load(URLRequest(url: items[targetItemIndex].url))
                 wrapper.isLoaded = true
-                print("📱 PreloadedWebViewManager: Preloading WebView for item #\(itemIndex)")
-
+                print("📱 PreloadedWebViewManager: Preloading WebView for item #\(targetItemIndex)")
                 webViewPool.append(wrapper)
             }
         }
@@ -289,33 +316,23 @@ class PreloadedWebViewManager: ObservableObject {
         print("🔄 PreloadedWebViewManager: Reloading WebView at pool index \(poolIndex) with item #\(itemIndex)")
     }
 
-    private func recycleWebViewsForward(targetItemIndex: Int) {
-        // When we run out of preloaded WebViews, recycle the oldest one
-        guard webViewPool.count > 0 else {
-            print("❌ PreloadedWebViewManager.recycleWebViewsForward: Pool is empty")
-            return
-        }
-
-        // Move the first WebView to the end and reload it
-        let recycled = webViewPool.removeFirst()
-        webViewPool.append(recycled)
-
-        // The target item is now at the last position
-        currentIndex = webViewPool.count - 1
-
-        // Load the new content
-        loadWebView(at: webViewPool.count - 1, withItemIndex: targetItemIndex)
-    }
-
-    private func releaseOldWebViews() {
-        // Keep only current + next 2 + previous 1
-        // For now, we're managing a fixed pool size, so no release needed
-        // This method is here for future memory optimization
-    }
-
     private func updateScrollMonitoring() {
         guard currentIndex < webViewPool.count,
               let coordinator = webViewPool[currentIndex].coordinator else { return }
+
+        let currentWebView = webViewPool[currentIndex].webView
+
+        // Point webBrowser at the pool's active WKWebView so the toolbar back
+        // button (webBrowser.goBack / canGoBack) talks to the right view.
+        webBrowser?.wkWebView = currentWebView
+
+        // KVO-sync canGoBack from the active WKWebView into webBrowser.
+        canGoBackObserver?.invalidate()
+        canGoBackObserver = currentWebView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] wv, _ in
+            DispatchQueue.main.async {
+                self?.webBrowser?.canGoBack = wv.canGoBack
+            }
+        }
 
         scrollMonitorCancellable?.cancel()
         scrollMonitorCancellable = coordinator.$isAtTop

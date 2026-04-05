@@ -321,23 +321,16 @@ struct LoadingCardView: View {
 
 struct WebPageCardListView: View {
     @EnvironmentObject var webPageViewModel: WebPageViewModel
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @EnvironmentObject var browseForwardViewModel: BrowseForwardViewModel
     @EnvironmentObject var webBrowser: WebBrowser
     @Binding var commentsUrlString: String?
 
     var onURLTap: ((String) -> Void)? = nil
-    var items: [BrowseForwardItem]? = nil // Optional items parameter for search results
+    var items: [BrowseForwardItem] = []
 
     // Track which cards we've preloaded to avoid duplicate work
     @State private var preloadedCardIds: Set<String> = []
-    // Loading state for better UX
-    @State private var isLoading: Bool = false
 
-    // Always use the unified displayedItems from ViewModel (single source of truth)
-    private var displayItems: [BrowseForwardItem] {
-        items ?? browseForwardViewModel.items
-    }
+    private var displayItems: [BrowseForwardItem] { items }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -389,5 +382,50 @@ struct WebPageCardListView: View {
 
         print("🎴 Preloading cards around index \(currentIndex)")
         // AsyncImage handles thumbnail preloading automatically
+    }
+}
+
+// MARK: - BrowseQueueCards
+// Equatable wrapper so ContentView's card row doesn't re-render on every
+// currentItemIndex change — only when items or dark-mode actually changes.
+struct BrowseQueueCards: View, Equatable {
+    let items: [BrowseForwardItem]
+    let pageBackgroundIsDark: Bool
+    let onTap: (String) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.pageBackgroundIsDark == rhs.pageBackgroundIsDark &&
+        lhs.items.count == rhs.items.count &&
+        zip(lhs.items, rhs.items).allSatisfy { $0.id == $1.id }
+    }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            if items.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "square.stack.3d.up.slash")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white.opacity(0.6))
+                    Text("No content available")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 158)
+                .padding(.horizontal, 20)
+            } else {
+                LazyHStack(spacing: 16) {
+                    ForEach(items) { item in
+                        BrowseForwardCardView(
+                            item: item,
+                            pageBackgroundIsDark: pageBackgroundIsDark,
+                            onTap: onTap
+                        )
+                    }
+                }
+                .padding(.horizontal, 20)
+            }
+        }
+        .frame(height: 158)
     }
 }
