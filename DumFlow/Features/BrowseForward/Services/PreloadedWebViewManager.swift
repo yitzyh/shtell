@@ -129,6 +129,12 @@ class PreloadedWebViewManager: ObservableObject {
         print("✅ PreloadedWebViewManager: Initialized \(webViewPool.count) WebViews")
     }
 
+    /// The content item index the pool is currently showing.
+    var currentItemIndex: Int {
+        guard currentIndex < webViewPool.count else { return 0 }
+        return webViewPool[currentIndex].itemIndex
+    }
+
     /// Get the current WebView
     func getCurrentWebView() -> WKWebView? {
         guard currentIndex < webViewPool.count else { return nil }

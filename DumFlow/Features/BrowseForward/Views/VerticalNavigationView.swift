@@ -163,7 +163,12 @@ struct VerticalNavigationView: View {
     /// Called when forward button bumps currentItemIndex externally.
     private func navigatePoolForward(steps: Int) {
         isTransitioning = true
-        for _ in 0..<steps { pool.navigateToNext() }
+        for _ in 0..<steps {
+            // Skip if pool already advanced (e.g. commitNext called navigateToNext directly)
+            if pool.currentItemIndex < browseForwardViewModel.currentItemIndex {
+                pool.navigateToNext()
+            }
+        }
         isTransitioning = false
     }
 
