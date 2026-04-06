@@ -100,9 +100,13 @@ struct VerticalNavigationView: View {
         // Forward button / external navigation: if browseForwardViewModel.currentItemIndex
         // is bumped externally, walk the pool to match.
         .onChange(of: browseForwardViewModel.currentItemIndex) { old, new in
-            guard !isTransitioning else { return }
-            if new > old { navigatePoolForward(steps: new - old) }
-            else if new < old { navigatePoolBackward(steps: old - new) }
+            if new < old {
+                // Backward always goes through — cancels any pending forward commit
+                navigatePoolBackward(steps: old - new)
+            } else if new > old {
+                guard !isTransitioning else { return }
+                navigatePoolForward(steps: new - old)
+            }
         }
         // When the API replaces the items array, reset the pool so it loads
         // the new URLs instead of the old hardcoded ones.
@@ -166,6 +170,7 @@ struct VerticalNavigationView: View {
     private func navigatePoolBackward(steps: Int) {
         pendingCommit?.cancel()
         pendingCommit = nil
+        dragOffset = 0          // snap back any in-flight animation
         isTransitioning = true
         for _ in 0..<steps { pool.navigateToPrevious() }
         isTransitioning = false
