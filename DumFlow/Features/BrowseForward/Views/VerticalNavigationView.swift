@@ -24,6 +24,7 @@ struct VerticalNavigationView: View {
 
     @State private var dragOffset: CGFloat = 0
     @State private var isTransitioning = false
+    @State private var pendingCommit: Task<Void, Never>?
 
     private let distanceThreshold: CGFloat = 80
     private let velocityThreshold: CGFloat = 500
@@ -119,7 +120,10 @@ struct VerticalNavigationView: View {
         withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             dragOffset = screenHeight
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+        pendingCommit?.cancel()
+        pendingCommit = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(280))
+            guard !Task.isCancelled else { return }
             pool.navigateToNext()
             browseForwardViewModel.currentItemIndex = min(
                 browseForwardViewModel.currentItemIndex + 1,
@@ -160,6 +164,8 @@ struct VerticalNavigationView: View {
     }
 
     private func navigatePoolBackward(steps: Int) {
+        pendingCommit?.cancel()
+        pendingCommit = nil
         isTransitioning = true
         for _ in 0..<steps { pool.navigateToPrevious() }
         isTransitioning = false
