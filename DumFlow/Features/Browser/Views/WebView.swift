@@ -63,7 +63,6 @@ class WebBrowser: ObservableObject{
     @Published var canGoForward: Bool = false
     @Published var loadingProgress: Double = 0.0
     @Published var scrollProgress: CGFloat = 0.0  // 0 = full toolbar, 1 = collapsed
-    @Published var isAtTopOfPage: Bool = true
     @Published var isForwardNavigation = false
     @Published var isReaderMode: Bool = false
     @Published var browseForwardCategory: String? = nil

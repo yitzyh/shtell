@@ -356,16 +356,10 @@ class PreloadedWebViewManager: ObservableObject {
                 self?.isAtTopOfCurrentPage = value
             }
 
-        // Forward scroll state to webBrowser for toolbar animations.
+        // Forward scroll progress to webBrowser so ContentView can collapse toolbars.
         coordinator.$scrollProgress
             .sink { [weak self] progress in
                 self?.webBrowser?.scrollProgress = progress
-            }
-            .store(in: &cancellables)
-
-        coordinator.$isAtTop
-            .sink { [weak self] atTop in
-                self?.webBrowser?.isAtTopOfPage = atTop
             }
             .store(in: &cancellables)
 

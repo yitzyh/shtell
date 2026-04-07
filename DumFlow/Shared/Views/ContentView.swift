@@ -1276,62 +1276,26 @@ struct URLTextView: View {
     let onSearchBarTap: (() -> Void)?
     let searchIsFocused: FocusState<Bool>.Binding
 
-    @EnvironmentObject private var webBrowser: WebBrowser
-    @EnvironmentObject private var browseForwardViewModel: BrowseForwardViewModel
-
-    private var nextItemDomain: String? {
-        let nextIndex = browseForwardViewModel.currentItemIndex + 1
-        guard nextIndex < browseForwardViewModel.displayedItems.count else { return nil }
-        return browseForwardViewModel.displayedItems[nextIndex].domain
-            ?? browseForwardViewModel.displayedItems[nextIndex].url.host
-    }
-
-    /// Show the next-item hint when at top of page and a next item exists.
-    private var showingNext: Bool {
-        webBrowser.isAtTopOfPage && nextItemDomain != nil
-    }
-
     var body: some View {
-        ZStack {
-            // Current URL — slides up and out when showing next
-            Text(urlString.shortURL())
-                .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundColor(pageBackgroundIsDark ? .white : .black)
-                .opacity(showingNext ? 0 : 1)
-                .offset(y: showingNext ? -12 : 0)
-
-            // Next item domain — slides up from below
-            if let domain = nextItemDomain {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text(domain)
-                        .font(.system(size: max(13, 18 - (scrollProgress * 5)), weight: .medium))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .foregroundColor(.orange)
-                .opacity(showingNext ? 1 : 0)
-                .offset(y: showingNext ? 0 : 12)
-            }
-        }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showingNext)
-        .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-        .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if scrollProgress > 0.1 {
-                onSearchBarTap?()
-            } else {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    searchIsFocused.wrappedValue = true
+        Text(urlString.shortURL())
+            .font(.system(size: max(14, 20 - (scrollProgress * 6)), weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .foregroundColor(pageBackgroundIsDark ? .white : .black)
+            .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+            .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if scrollProgress > 0.1 {
+                    onSearchBarTap?()
+                } else {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        searchIsFocused.wrappedValue = true
+                    }
                 }
             }
-        }
-        .padding(.horizontal, 15)
-        .padding(.vertical, max(0, 12 - (scrollProgress * 12)))
+            .padding(.horizontal, 15)
+            .padding(.vertical, max(0, 12 - (scrollProgress * 12)))
     }
 }
 
