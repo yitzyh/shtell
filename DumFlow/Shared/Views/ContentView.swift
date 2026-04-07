@@ -47,7 +47,7 @@ struct ContentView: View {
         NavigationStack{
             //WebView()
             ZStack{
-                VerticalNavigationView()
+                VerticalNavigationView(searchIsFocused: $searchIsFocused)
                 .ignoresSafeArea()
                 .environmentObject(webBrowser)
                 .environmentObject(browseForwardViewModel)

@@ -20,6 +20,10 @@ struct VerticalNavigationView: View {
     @EnvironmentObject var webBrowser: WebBrowser
     @EnvironmentObject var webPageViewModel: WebPageViewModel
 
+    /// When the search overlay is open, suppress pool reinit so WKWebView.load()
+    /// doesn't steal UIKit first responder from the search TextField.
+    var searchIsFocused: FocusState<Bool>.Binding
+
     @StateObject private var pool = PreloadedWebViewManager()
 
     @State private var dragOffset: CGFloat = 0
@@ -110,9 +114,26 @@ struct VerticalNavigationView: View {
         }
         // When the API replaces the items array, reset the pool so it loads
         // the new URLs instead of the old hardcoded ones.
+        // Skip reinit while search is open: calling webView.load() steals UIKit
+        // first responder from the search TextField, killing searchIsFocused.
         .onChange(of: browseForwardViewModel.items) { _, newItems in
-            guard !newItems.isEmpty, !isTransitioning else { return }
+            guard !newItems.isEmpty, !isTransitioning, !searchIsFocused.wrappedValue else {
+                if searchIsFocused.wrappedValue {
+                    print("⏸ VerticalNavigationView: Deferring pool reinit — search overlay is open")
+                }
+                return
+            }
             pool.reinitializeWebViews()
+        }
+        // Deferred reinit: when search closes, catch up if items changed while it was open.
+        .onChange(of: searchIsFocused.wrappedValue) { _, nowFocused in
+            guard !nowFocused, !browseForwardViewModel.items.isEmpty, !isTransitioning else { return }
+            let poolItemIndex = pool.currentItemIndex
+            let vmItemIndex = browseForwardViewModel.currentItemIndex
+            if poolItemIndex != vmItemIndex {
+                print("🔄 VerticalNavigationView: Search closed, pool out of sync — reiniting")
+                pool.reinitializeWebViews()
+            }
         }
     }
 
