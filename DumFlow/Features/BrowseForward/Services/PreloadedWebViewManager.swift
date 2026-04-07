@@ -13,6 +13,7 @@ class PreloadedWebViewManager: ObservableObject {
     private var webViewPool: [WebViewWrapper] = []
     private let maxPreloadCount = 5 // Current + Next 3 + Previous 1
     private var scrollMonitorCancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
     private var canGoBackObserver: NSKeyValueObservation?
 
     // MARK: - Dependencies
@@ -32,8 +33,12 @@ class PreloadedWebViewManager: ObservableObject {
     // MARK: - WebView Coordinator for Scroll Detection
     class WebViewCoordinator: NSObject, WKNavigationDelegate, UIScrollViewDelegate {
         @Published var isAtTop: Bool = true
+        @Published var scrollProgress: CGFloat = 0.0
         weak var webView: WKWebView?
         private var scrollObservation: NSKeyValueObservation?
+
+        /// Distance (pts) of scroll needed to fully collapse the toolbar.
+        private let collapseDistance: CGFloat = 60
 
         init(webView: WKWebView) {
             self.webView = webView
@@ -49,9 +54,9 @@ class PreloadedWebViewManager: ObservableObject {
         }
 
         private func checkScrollPosition(_ scrollView: UIScrollView) {
-            // With .automatic adjustment, "at top" means offset is at or near the adjusted top
-            let atTop = scrollView.contentOffset.y <= -scrollView.adjustedContentInset.top + 50
-            isAtTop = atTop
+            let offset = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+            isAtTop = offset <= 50
+            scrollProgress = min(1.0, max(0.0, offset / collapseDistance))
         }
 
         // MARK: - UIScrollViewDelegate
@@ -345,6 +350,13 @@ class PreloadedWebViewManager: ObservableObject {
             .sink { [weak self] value in
                 self?.isAtTopOfCurrentPage = value
             }
+
+        // Forward scroll progress to webBrowser so ContentView can collapse toolbars.
+        coordinator.$scrollProgress
+            .sink { [weak self] progress in
+                self?.webBrowser?.scrollProgress = progress
+            }
+            .store(in: &cancellables)
 
         print("🔍 PreloadedWebViewManager: Monitoring scroll for WebView at index \(currentIndex)")
     }

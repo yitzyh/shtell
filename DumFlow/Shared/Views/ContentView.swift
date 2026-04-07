@@ -27,7 +27,8 @@ struct ContentView: View {
     @State private var isShowingSafariView = false
     @State private var isShowingBrowseForwardPreferences = false
     @State private var isSafariReaderMode = false
-    @State private var scrollProgress: CGFloat = 0.0 // 0.0 = full toolbar, 1.0 = compact
+    // scrollProgress driven by pool's scroll delegate via webBrowser.scrollProgress
+    private var scrollProgress: CGFloat { webBrowser.scrollProgress }
     @State private var searchBarText: String = ""
     @State private var numComments: Int = 0
     @State private var isShowingHistory = false
@@ -199,7 +200,7 @@ struct ContentView: View {
                         },
                         onSearchBarTap: {
                             withAnimation(.easeInOut(duration: 0.3)) {
-                                scrollProgress = 0.0
+                                webBrowser.scrollProgress = 0.0
                                 searchIsFocused = true
                             }
                         }
