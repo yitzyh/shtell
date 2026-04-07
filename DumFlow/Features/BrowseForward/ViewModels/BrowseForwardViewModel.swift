@@ -26,7 +26,7 @@ class BrowseForwardViewModel: ObservableObject {
         isLoading = true
         Task {
             async let cats: () = loadCategories()
-            async let content: () = loadContent()
+            async let content: () = loadContent(caller: "init")
             _ = await (cats, content)
         }
     }
@@ -39,7 +39,8 @@ class BrowseForwardViewModel: ObservableObject {
         }
     }
 
-    func loadContent() async {
+    func loadContent(caller: String = #function) async {
+        print("📡 BrowseForwardViewModel.loadContent() triggered by: \(caller) | category=\(selectedCategory) | currentItems=\(items.count)")
         isLoading = true
         do {
             let fetched = try await BrowseForwardAPIService.shared.fetchContent(category: selectedCategory)
@@ -47,9 +48,9 @@ class BrowseForwardViewModel: ObservableObject {
             // into a single ContentView re-render, preventing FocusState disruption.
             currentItemIndex = 0
             items = fetched
-            print("✅ BrowseForwardViewModel: Loaded \(fetched.count) items from API")
+            print("✅ BrowseForwardViewModel: Loaded \(fetched.count) items from API (caller: \(caller))")
         } catch {
-            print("❌ BrowseForwardViewModel: API failed (\(error)), using fallback items")
+            print("❌ BrowseForwardViewModel: API failed (\(error)), using fallback items (caller: \(caller))")
             currentItemIndex = 0
             items = [
                 BrowseForwardItem(url: URL(string: "https://news.ycombinator.com")!, title: "Hacker News", category: "News"),
@@ -61,8 +62,9 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func selectCategory(_ category: String) {
+        print("📂 BrowseForwardViewModel.selectCategory: \(category)")
         selectedCategory = category
-        Task { await loadContent() }
+        Task { await loadContent(caller: "selectCategory(\(category))") }
     }
 
     func navigateToNext() {
@@ -94,11 +96,13 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func refreshWithPreferences(selectedCategories: Set<String> = [], selectedSubcategories: [String: Set<String>] = [:]) {
-        Task { await loadContent() }
+        print("🔃 BrowseForwardViewModel.refreshWithPreferences(categories:subcategories:) called | cats=\(selectedCategories)")
+        Task { await loadContent(caller: "refreshWithPreferences(cats:\(selectedCategories))") }
     }
 
     func refreshWithPreferences() {
-        Task { await loadContent() }
+        print("🔃 BrowseForwardViewModel.refreshWithPreferences() called")
+        Task { await loadContent(caller: "refreshWithPreferences()") }
     }
 
     func preloadPopularCategories() async {

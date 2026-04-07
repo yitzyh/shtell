@@ -667,10 +667,15 @@ struct ContentView: View {
     private func handleBackTap() {
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
+        print("⬅️ DEBUG handleBackTap: canGoBack=\(webBrowser.canGoBack) currentItemIndex=\(browseForwardViewModel.currentItemIndex) wkWebView=\(webBrowser.wkWebView != nil ? "set" : "nil")")
         if webBrowser.canGoBack {
+            print("⬅️ DEBUG handleBackTap: calling webBrowser.goBack()")
             webBrowser.goBack()
         } else if browseForwardViewModel.currentItemIndex > 0 {
+            print("⬅️ DEBUG handleBackTap: decrementing currentItemIndex \(browseForwardViewModel.currentItemIndex) → \(browseForwardViewModel.currentItemIndex - 1)")
             browseForwardViewModel.currentItemIndex -= 1
+        } else {
+            print("⬅️ DEBUG handleBackTap: nothing to go back to")
         }
     }
 
