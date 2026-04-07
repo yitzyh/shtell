@@ -441,7 +441,7 @@ struct ContentView: View {
                                 Button {
                                     handleBackTap()
                                 } label: {
-                                    Image(systemName: "arrow.left")
+                                    Image(systemName: "chevron.left")
                                         .foregroundColor(canGoBack ? (webBrowser.pageBackgroundIsDark ? .white : .black) : .gray)
                                         .font(.system(size: 22, weight: .medium))
                                         .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
@@ -650,17 +650,18 @@ struct ContentView: View {
     
     private func normalizeAndLoads(_ input: String) {
         let input = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        let candidate  = input.hasPrefix("http://") || input.hasPrefix("https://") ? input : "https://\(input)"
-//        if let url = URL(string: candidate), url.host != nil {
+        let candidate = input.hasPrefix("http://") || input.hasPrefix("https://") ? input : "https://\(input)"
         if let url = URL(string: candidate), let host = url.host, host.contains(".") {
             webBrowser.urlString = candidate
         } else {
             let query = input.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? input
             webBrowser.urlString = "https://www.google.com/search?hl=en&q=\(query)"
         }
+        // Load directly into the pool's active WKWebView (webBrowser.wkWebView).
+        // Also set isUserInitiatedNavigation for the legacy WebView representable.
+        webBrowser.load(webBrowser.urlString)
         webBrowser.isUserInitiatedNavigation = true
         searchBarText = webBrowser.urlString
-
     }
     
     // MARK: - Save Handler
@@ -1497,7 +1498,7 @@ struct BrowseForwardButton: View {
     @State private var targetRotation: Double = 0
 
     private var arrowIcon: String {
-        webBrowser.canGoForward ? "arrow.right" : "arrow.up"
+        webBrowser.canGoForward ? "chevron.right" : "chevron.up"
     }
 
     private var arrowColor: Color {

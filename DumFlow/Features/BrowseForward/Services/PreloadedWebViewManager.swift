@@ -11,7 +11,7 @@ class PreloadedWebViewManager: ObservableObject {
 
     // MARK: - WebView Pool
     private var webViewPool: [WebViewWrapper] = []
-    private let maxPreloadCount = 4 // Current + Next 2 + Previous 1
+    private let maxPreloadCount = 5 // Current + Next 3 + Previous 1
     private var scrollMonitorCancellable: AnyCancellable?
     private var canGoBackObserver: NSKeyValueObservation?
 
@@ -285,7 +285,7 @@ class PreloadedWebViewManager: ObservableObject {
 
         // Check if we need to load more WebViews
         let currentItemIndex = webViewPool[currentIndex].itemIndex
-        let nextItemsToPreload = 2 // Preload next 2 items
+        let nextItemsToPreload = 3 // Preload next 3 items
 
         for offset in 1...nextItemsToPreload {
             let targetItemIndex = currentItemIndex + offset

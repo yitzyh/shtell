@@ -87,6 +87,12 @@ class WebBrowser: ObservableObject{
     func goForward() { wkWebView?.goForward() }
     func reload() { wkWebView?.reload()}
 
+    /// Load a URL directly into the pool's active WKWebView.
+    func load(_ urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        wkWebView?.load(URLRequest(url: url))
+    }
+
     func jumpToLastForwardPage() {
         // Jump directly to the last page in forward history
         guard let webView = wkWebView, webView.canGoForward else { return }

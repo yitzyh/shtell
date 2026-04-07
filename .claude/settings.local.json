@@ -14,7 +14,8 @@
       "Bash(gh issue edit:*)",
       "Bash(gh repo list:*)",
       "Bash(time curl:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(wc -l /Users/isaacherskowitz/Claude/_SHTELL/Shtell/DumFlow/**/*.swift | tail -20)"
     ],
     "deny": [],
     "ask": []
