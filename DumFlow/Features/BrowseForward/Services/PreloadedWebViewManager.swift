@@ -274,7 +274,12 @@ class PreloadedWebViewManager: ObservableObject {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = false
+
+        // .automatic adds system safe area (status bar) automatically.
+        // We add extra inset so page content starts below our overlay toolbars.
         webView.scrollView.contentInsetAdjustmentBehavior = .automatic
+        webView.scrollView.contentInset = UIEdgeInsets(top: 44, left: 0, bottom: 60, right: 0)
+        webView.scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(top: 44, left: 0, bottom: 60, right: 0)
 
         return webView
     }
