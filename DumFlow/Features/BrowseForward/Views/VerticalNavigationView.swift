@@ -119,7 +119,6 @@ struct VerticalNavigationView: View {
         .onChange(of: browseForwardViewModel.items) { _, newItems in
             guard !newItems.isEmpty, !isTransitioning, !searchIsFocused.wrappedValue else {
                 if searchIsFocused.wrappedValue {
-                    print("⏸ VerticalNavigationView: Deferring pool reinit — search overlay is open")
                 }
                 return
             }
@@ -131,7 +130,6 @@ struct VerticalNavigationView: View {
             let poolItemIndex = pool.currentItemIndex
             let vmItemIndex = browseForwardViewModel.currentItemIndex
             if poolItemIndex != vmItemIndex {
-                print("🔄 VerticalNavigationView: Search closed, pool out of sync — reiniting")
                 pool.reinitializeWebViews()
             }
         }

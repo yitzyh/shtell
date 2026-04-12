@@ -36,9 +36,12 @@ class PreloadedWebViewManager: ObservableObject {
         @Published var scrollProgress: CGFloat = 0.0
         weak var webView: WKWebView?
         private var scrollObservation: NSKeyValueObservation?
+        private var lastOffset: CGFloat = 0
 
-        /// Distance (pts) of scroll needed to fully collapse the toolbar.
-        private let collapseDistance: CGFloat = 60
+        /// Scroll distance (pts) past the threshold needed to fully collapse the toolbar.
+        private let collapseDistance: CGFloat = 200
+        /// User must scroll this far down before toolbar starts collapsing.
+        private let collapseThreshold: CGFloat = 150
 
         init(webView: WKWebView) {
             self.webView = webView
@@ -55,8 +58,19 @@ class PreloadedWebViewManager: ObservableObject {
 
         private func checkScrollPosition(_ scrollView: UIScrollView) {
             let offset = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
-            isAtTop = offset <= 50
-            scrollProgress = min(1.0, max(0.0, offset / collapseDistance))
+            let delta = offset - lastOffset
+            lastOffset = offset
+
+            isAtTop = offset <= 80
+
+            if delta < 0 {
+                // Scrolling up — snap toolbar fully open immediately
+                scrollProgress = 0.0
+            } else if offset > collapseThreshold {
+                // Scrolling down past threshold — gradually collapse
+                let progress = min(1.0, max(0.0, (offset - collapseThreshold) / collapseDistance))
+                scrollProgress = max(scrollProgress, progress)
+            }
         }
 
         // MARK: - UIScrollViewDelegate
@@ -66,7 +80,6 @@ class PreloadedWebViewManager: ObservableObject {
 
         // MARK: - WKNavigationDelegate
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            print("🔄 PreloadedWebView: Finished loading")
         }
 
         deinit {
@@ -82,7 +95,6 @@ class PreloadedWebViewManager: ObservableObject {
         self.webBrowser = webBrowser
         self.webPageViewModel = webPageViewModel
 
-        print("🎯 PreloadedWebViewManager: Initialized")
     }
 
     /// Set dependencies after initialization
@@ -92,7 +104,6 @@ class PreloadedWebViewManager: ObservableObject {
         self.browseForwardViewModel = browseForwardViewModel
         self.webBrowser = webBrowser
         self.webPageViewModel = webPageViewModel
-        print("🎯 PreloadedWebViewManager: Dependencies set")
     }
 
     // MARK: - Public Methods
@@ -101,7 +112,6 @@ class PreloadedWebViewManager: ObservableObject {
     func initializeWebViews() {
         guard let items = browseForwardViewModel?.displayedItems,
               !items.isEmpty else {
-            print("❌ PreloadedWebViewManager: No items to display")
             return
         }
 
@@ -122,7 +132,6 @@ class PreloadedWebViewManager: ObservableObject {
             let url = items[index].url
             webView.load(URLRequest(url: url))
             wrapper.isLoaded = true
-            print("📱 PreloadedWebViewManager: Loading WebView #\(index) with URL: \(url)")
 
 
             webViewPool.append(wrapper)
@@ -131,7 +140,6 @@ class PreloadedWebViewManager: ObservableObject {
         // Monitor scroll position of current WebView
         updateScrollMonitoring()
 
-        print("✅ PreloadedWebViewManager: Initialized \(webViewPool.count) WebViews")
     }
 
     /// The content item index the pool is currently showing.
@@ -171,32 +179,27 @@ class PreloadedWebViewManager: ObservableObject {
         let itemIndex = webViewPool[currentIndex].itemIndex
         guard itemIndex < items.count else { return }
 
-        print("⬅️ PreloadedWebViewManager: Navigating back to item \(itemIndex)")
     }
 
     /// Navigate to the next item
     func navigateToNext() {
         guard let items = browseForwardViewModel?.displayedItems,
               !items.isEmpty else {
-            print("❌ PreloadedWebViewManager.navigateToNext: No items available")
             return
         }
 
         if webViewPool.isEmpty {
-            print("⚠️ PreloadedWebViewManager: Pool was empty, initializing now")
             initializeWebViews()
             return
         }
 
         guard currentIndex < webViewPool.count else {
-            print("❌ PreloadedWebViewManager.navigateToNext: Invalid currentIndex \(currentIndex), pool size: \(webViewPool.count)")
             return
         }
 
         let nextItemIndex = webViewPool[currentIndex].itemIndex + 1
         guard nextItemIndex < items.count else { return }
 
-        print("➡️ PreloadedWebViewManager: Navigating from item \(webViewPool[currentIndex].itemIndex) to \(nextItemIndex)")
 
         // Advance into the next slot (already preloaded) or fallback-create one
         if currentIndex + 1 < webViewPool.count {
@@ -262,7 +265,6 @@ class PreloadedWebViewManager: ObservableObject {
         }
 
         updateScrollMonitoring()
-        print("🔄 PreloadedWebViewManager: Re-initialized pool with new items")
     }
 
     // MARK: - Private Methods
@@ -289,7 +291,6 @@ class PreloadedWebViewManager: ObservableObject {
               !items.isEmpty else { return }
 
         guard currentIndex < webViewPool.count else {
-            print("❌ PreloadedWebViewManager.preloadNextWebView: Invalid currentIndex")
             return
         }
 
@@ -313,7 +314,6 @@ class PreloadedWebViewManager: ObservableObject {
                 var wrapper = WebViewWrapper(webView: webView, coordinator: coordinator, itemIndex: targetItemIndex)
                 webView.load(URLRequest(url: items[targetItemIndex].url))
                 wrapper.isLoaded = true
-                print("📱 PreloadedWebViewManager: Preloading WebView for item #\(targetItemIndex)")
                 webViewPool.append(wrapper)
             }
         }
@@ -329,7 +329,6 @@ class PreloadedWebViewManager: ObservableObject {
         let url = items[itemIndex].url
         webViewPool[poolIndex].webView.load(URLRequest(url: url))
         webViewPool[poolIndex].isLoaded = true
-        print("🔄 PreloadedWebViewManager: Reloading WebView at pool index \(poolIndex) with item #\(itemIndex)")
     }
 
     private func updateScrollMonitoring() {
@@ -341,6 +340,12 @@ class PreloadedWebViewManager: ObservableObject {
         // Point webBrowser at the pool's active WKWebView so the toolbar back
         // button (webBrowser.goBack / canGoBack) talks to the right view.
         webBrowser?.wkWebView = currentWebView
+
+        // Sync current item's URL into webBrowser so toolbar actions (save, comment) work.
+        if let items = browseForwardViewModel?.displayedItems,
+           let url = items[safe: webViewPool[currentIndex].itemIndex]?.url {
+            webBrowser?.urlString = url.absoluteString
+        }
 
         // KVO-sync canGoBack from the active WKWebView into webBrowser.
         canGoBackObserver?.invalidate()
@@ -356,13 +361,18 @@ class PreloadedWebViewManager: ObservableObject {
                 self?.isAtTopOfCurrentPage = value
             }
 
-        // Forward scroll progress to webBrowser so ContentView can collapse toolbars.
+        // Forward scroll state to webBrowser for toolbar animations.
         coordinator.$scrollProgress
             .sink { [weak self] progress in
                 self?.webBrowser?.scrollProgress = progress
             }
             .store(in: &cancellables)
 
-        print("🔍 PreloadedWebViewManager: Monitoring scroll for WebView at index \(currentIndex)")
+        coordinator.$isAtTop
+            .sink { [weak self] atTop in
+                self?.webBrowser?.isAtTopOfPage = atTop
+            }
+            .store(in: &cancellables)
+
     }
 }

@@ -49,6 +49,7 @@ struct SavedWebPagesView: View {
                                 onURLTap: { urlString in
                                     webBrowser.urlString = urlString
                                     webBrowser.isUserInitiatedNavigation = true
+                                    webBrowser.load(urlString)
                                     dismiss()
                                 },
                                 shouldDismissOnURLTap: false

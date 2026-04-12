@@ -63,6 +63,7 @@ class WebBrowser: ObservableObject{
     @Published var canGoForward: Bool = false
     @Published var loadingProgress: Double = 0.0
     @Published var scrollProgress: CGFloat = 0.0  // 0 = full toolbar, 1 = collapsed
+    @Published var isAtTopOfPage: Bool = true
     @Published var isForwardNavigation = false
     @Published var isReaderMode: Bool = false
     @Published var browseForwardCategory: String? = nil
@@ -1187,23 +1188,20 @@ struct WebView: UIViewRepresentable {
             let currentOffset = scrollView.contentOffset.y
             let scrollDelta = currentOffset - lastContentOffset
 
-            // Start minimizing after scrolling 1 screen height OR 20% of content, whichever is smaller
-            let webpageLength = max(0, scrollView.contentSize.height - scrollView.frame.height)
+            // Start minimizing only after user scrolls at least 40% of screen height
             let oneScreenHeight = scrollView.frame.height
-            let twentyPercentOfContent = webpageLength * 0.2
-            let minimizeThreshold = min(oneScreenHeight, twentyPercentOfContent)
+            let minimizeThreshold = oneScreenHeight * 0.4
 
             if scrollDelta > 0 { // Scrolling down
                 if currentOffset > minimizeThreshold {
                     // Past threshold - minimize based on user's scroll delta
-                    let scrollSensitivity: CGFloat = 120.0 // Higher = slower minimization
+                    let scrollSensitivity: CGFloat = 250.0 // Higher = slower minimization
                     let newProgress = min(1.0, scrollProgress + (scrollDelta / scrollSensitivity))
                     withAnimation(.easeOut(duration: 0.2)) {
                         scrollProgress = newProgress
-                        }
+                    }
                 }
-            } else if scrollDelta < 0 { // Scrolling up
-                // Always expand immediately on upward scroll
+            } else if scrollDelta < 0 { // Scrolling up — snap toolbar fully open
                 withAnimation(.easeOut(duration: 0.2)) {
                     scrollProgress = 0.0
                 }

@@ -323,8 +323,8 @@ struct ContentView: View {
             .presentationDragIndicator(.visible)
             .onReceive(authViewModel.$signedInUser) { user in
                 if user != nil {
-                    // User signed in, dismiss sheet
                     isShowingSignIn = false
+                    handleSaveButtonTap()
                 }
             }
         }
@@ -404,13 +404,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: searchIsFocused) { oldValue, newValue in
-            print("🔍 DEBUG: searchIsFocused changed to \(newValue)")
-            print("🔍 DEBUG: displayedItems count = \(browseForwardViewModel.displayedItems.count)")
 
             if newValue {
                 // Search overlay opened - load items if empty
                 if browseForwardViewModel.displayedItems.isEmpty {
-                    print("🔍 DEBUG: displayedItems is empty, loading content...")
                     browseForwardViewModel.refreshWithPreferences(selectedCategories: [], selectedSubcategories: [:])
                 }
             } else {
@@ -428,9 +425,9 @@ struct ContentView: View {
     private var bottomToolbar: some View {
         VStack {
             Spacer()
-            
+
             HStack {                                    // Layer 1: Centered container
-                HStack {                                // Layer 2: Right-aligned container  
+                HStack {                                // Layer 2: Right-aligned container
                     HStack(spacing: 0) {                     // Layer 3: Manual spacing system
                         // 4pt persistent left padding
                         Spacer().frame(width: 4)
@@ -454,13 +451,13 @@ struct ContentView: View {
                                 .opacity(max(0, 1.0 - (scrollProgress * CGFloat(3))))
                                 .scaleEffect(max(0.5, 1.0 - (scrollProgress * CGFloat(1.5))))
                             }
-                            
+
                             // Spacer 1: Back → Menu (20pt → 0pt, disappears with Back)
                             if scrollProgress < 0.33 {
                                 Spacer()
                                     .frame(width: max(0, 20 - (scrollProgress * 20)))
                             }
-                            
+
                             // Menu button - disappears second (0.33 to 0.66)
                             if scrollProgress < 0.66 {
                                 Button {
@@ -477,13 +474,13 @@ struct ContentView: View {
                                 .opacity(scrollProgress < 0.33 ? 1.0 : max(0, 1.0 - (CGFloat((scrollProgress - 0.33) / 0.33))))
                                 .scaleEffect(scrollProgress < 0.33 ? 1.0 : max(0.5, 1.0 - (CGFloat((scrollProgress - 0.33) / 0.33) * 0.5)))
                             }
-                            
+
                             // Spacer 2: Menu → Save (20pt → 0pt, disappears with Menu)
                             if scrollProgress < 0.66 {
                                 Spacer()
                                     .frame(width: max(0, 20 - (scrollProgress * 20)))
                             }
-                            
+
                             // Save button - disappears last (0.66 to 1.0)
                             if scrollProgress < 1.0 {
                                 let isSaved = webPageViewModel.uiState.savedWebPageStates.contains(webBrowser.urlString.normalizedURL ?? webBrowser.urlString)
@@ -503,7 +500,7 @@ struct ContentView: View {
                                     .opacity(scrollProgress < 0.66 ? 1.0 : max(0, 1.0 - (CGFloat((scrollProgress - 0.66) / 0.34))))
                                     .scaleEffect(scrollProgress < 0.66 ? 1.0 : max(0.5, 1.0 - (CGFloat((scrollProgress - 0.66) / 0.34) * 0.5)))
                             }
-                            
+
                             // Spacer 3: Save → Comment (20pt → 0pt, disappears with Save)
                             if scrollProgress < 1.0 {
                                 Spacer()
@@ -511,13 +508,13 @@ struct ContentView: View {
                             }
                         }
                         .animation(.easeInOut(duration: 0.3), value: scrollProgress)
-                        
+
                         // RIGHT GROUP - Always visible, no animations
                         HStack(spacing: 20) {
                             // Comment button (always visible, with count to right)
                             let normalized = webBrowser.urlString.normalizedURL ?? webBrowser.urlString
                             let count = webPageViewModel.contentState.commentCountLookup[normalized] ?? webPageViewModel.contentState.webPage?.commentCount ?? 0
-                            
+
                             Image(systemName: "bubble.right")
                                 .font(.system(size: 22, weight: .medium))
                                 .foregroundColor(webBrowser.pageBackgroundIsDark ? .white : .black)
@@ -545,7 +542,7 @@ struct ContentView: View {
                                 }
                             }
                             .matchedGeometryEffect(id: "commentButton", in: bottomToolbarNamespace)
-                            
+
                             // Forward/BrowseForward button with smart rotation
                             BrowseForwardButton(
                                 webBrowser: webBrowser,
@@ -553,7 +550,7 @@ struct ContentView: View {
                             )
                             .matchedGeometryEffect(id: "forwardButton", in: bottomToolbarNamespace)
                         }
-                        
+
                         // 4pt persistent right padding
                         Spacer().frame(width: 4)
                     }
@@ -669,15 +666,11 @@ struct ContentView: View {
     private func handleBackTap() {
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
-        print("⬅️ DEBUG handleBackTap: canGoBack=\(webBrowser.canGoBack) currentItemIndex=\(browseForwardViewModel.currentItemIndex) wkWebView=\(webBrowser.wkWebView != nil ? "set" : "nil")")
         if webBrowser.canGoBack {
-            print("⬅️ DEBUG handleBackTap: calling webBrowser.goBack()")
             webBrowser.goBack()
         } else if browseForwardViewModel.currentItemIndex > 0 {
-            print("⬅️ DEBUG handleBackTap: decrementing currentItemIndex \(browseForwardViewModel.currentItemIndex) → \(browseForwardViewModel.currentItemIndex - 1)")
             browseForwardViewModel.currentItemIndex -= 1
         } else {
-            print("⬅️ DEBUG handleBackTap: nothing to go back to")
         }
     }
 
@@ -720,9 +713,7 @@ struct ContentView: View {
     // MARK: - Quote Handlers
     private func handleQuoteText(_ quotedText: String, _ selector: String, _ offset: Int) {
         // Store quote data for when comment sheet opens
-        print("🔍 DEBUG ContentView: Storing quote: '\(quotedText)'")
         webPageViewModel.uiState.pendingQuote = (quotedText, selector, offset)
-        print("🔍 DEBUG ContentView: pendingQuote is now: \(webPageViewModel.uiState.pendingQuote != nil ? "SET" : "NIL")")
         
         // Open comment sheet
         isShowingComments = true
@@ -852,7 +843,6 @@ struct FullToolbar: View {
                         .scaleEffect(x: webBrowser.loadingProgress * 1.2, y: 1, anchor: .leading)
                         .animation(.easeInOut(duration: 0.25), value: webBrowser.loadingProgress)
                         .onAppear {
-                            print("🔄 DEBUG: Search capsule progress bar appeared!")
                         }
                 }
             }
@@ -1338,10 +1328,8 @@ struct LoadingProgressBar: View {
         }
         .clipShape(Capsule())
         .onAppear {
-            print("🔄 DEBUG: LoadingProgressBar appeared")
         }
         .onChange(of: webBrowser.loadingProgress) { _, progress in
-            print("🔄 DEBUG: Progress changed to \(progress)")
         }
     }
 }

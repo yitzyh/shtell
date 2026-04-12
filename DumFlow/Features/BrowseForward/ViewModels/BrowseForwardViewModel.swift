@@ -40,17 +40,12 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func loadContent(caller: String = #function) async {
-        print("📡 BrowseForwardViewModel.loadContent() triggered by: \(caller) | category=\(selectedCategory) | currentItems=\(items.count)")
         isLoading = true
         do {
             let fetched = try await BrowseForwardAPIService.shared.fetchContent(category: selectedCategory)
-            // Reset index before items so both @Published changes are batched
-            // into a single ContentView re-render, preventing FocusState disruption.
             currentItemIndex = 0
-            items = fetched
-            print("✅ BrowseForwardViewModel: Loaded \(fetched.count) items from API (caller: \(caller))")
+            items = fetched.shuffled()
         } catch {
-            print("❌ BrowseForwardViewModel: API failed (\(error)), using fallback items (caller: \(caller))")
             currentItemIndex = 0
             items = [
                 BrowseForwardItem(url: URL(string: "https://news.ycombinator.com")!, title: "Hacker News", category: "News"),
@@ -62,7 +57,6 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func selectCategory(_ category: String) {
-        print("📂 BrowseForwardViewModel.selectCategory: \(category)")
         selectedCategory = category
         Task { await loadContent(caller: "selectCategory(\(category))") }
     }
@@ -96,13 +90,11 @@ class BrowseForwardViewModel: ObservableObject {
     }
 
     func refreshWithPreferences(selectedCategories: Set<String> = [], selectedSubcategories: [String: Set<String>] = [:]) {
-        print("🔃 BrowseForwardViewModel.refreshWithPreferences(categories:subcategories:) called | cats=\(selectedCategories)")
-        Task { await loadContent(caller: "refreshWithPreferences(cats:\(selectedCategories))") }
+        Task { await loadContent() }
     }
 
     func refreshWithPreferences() {
-        print("🔃 BrowseForwardViewModel.refreshWithPreferences() called")
-        Task { await loadContent(caller: "refreshWithPreferences()") }
+        Task { await loadContent() }
     }
 
     func preloadPopularCategories() async {

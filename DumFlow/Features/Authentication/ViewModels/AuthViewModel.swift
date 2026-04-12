@@ -76,7 +76,9 @@ final class AuthViewModel: ObservableObject {
         } onCompletion: { result in
             switch result {
             case .success(let auth):
-                self.handleAuthorization(auth)
+                Task { @MainActor in
+                    self.handleAuthorization(auth)
+                }
             case .failure(let error):
                 Task { @MainActor in
                     self.errorMessage = error.localizedDescription
@@ -87,31 +89,21 @@ final class AuthViewModel: ObservableObject {
     }
 
     private func handleAuthorization(_ authorization: ASAuthorization) {
-        print("🔐 SIWA: handleAuthorization called")
         guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            print("🔐 SIWA: ❌ credential cast failed")
             Task { @MainActor in
                 self.errorMessage = "Invalid Apple ID credential"
             }
             return
         }
-        print("🔐 SIWA: credential OK — user=\(credential.user.prefix(8))... email=\(credential.email ?? "nil") fullName=\(credential.fullName?.givenName ?? "nil")")
         self.appleUserID = credential.user
-
         let container = CKContainer(identifier: "iCloud.com.yitzy.DumFlow")
-        print("🔐 SIWA: fetching CloudKit userRecordID...")
         container.fetchUserRecordID { [weak self] recordID, fetchError in
-            if let fetchError = fetchError {
-                print("🔐 SIWA: ❌ fetchUserRecordID failed: \(fetchError)")
-            }
             guard let recordID = recordID else {
-                print("🔐 SIWA: ❌ recordID is nil")
                 Task { @MainActor in
                     self?.errorMessage = fetchError?.localizedDescription ?? "Failed to get CloudKit user ID"
                 }
                 return
             }
-            print("🔐 SIWA: ✅ got recordID=\(recordID.recordName.prefix(8))...")
             Task {
                 await self?.searchForExistingUser(appleUserID: credential.user, credential: credential, recordID: recordID)
             }
@@ -119,7 +111,6 @@ final class AuthViewModel: ObservableObject {
     }
 
     private func searchForExistingUser(appleUserID: String, credential: ASAuthorizationAppleIDCredential, recordID: CKRecord.ID) async {
-        print("🔐 SIWA: searchForExistingUser appleUserID=\(appleUserID.prefix(8))...")
         let container = CKContainer(identifier: "iCloud.com.yitzy.DumFlow")
         let predicate = NSPredicate(format: "appleUserID == %@", appleUserID)
         let query = CKQuery(recordType: "User", predicate: predicate)
@@ -128,27 +119,23 @@ final class AuthViewModel: ObservableObject {
             Task { @MainActor in
                 switch result {
                 case .success(let response):
-                    print("🔐 SIWA: CK query success — matchResults count=\(response.matchResults.count)")
                     if !response.matchResults.isEmpty {
                         for (_, matchResult) in response.matchResults {
                             switch matchResult {
                             case .success(let record):
-                                print("🔐 SIWA: ✅ existing user found, completing sign in")
                                 self.completeSignIn(with: record, appleUserID: credential.user, cloudKitUserRecordID: recordID)
                                 self.needsUsernameSelection = false
                                 self.pendingUserData = nil
                                 self.errorMessage = nil
                                 return
-                            case .failure(let err):
-                                print("🔐 SIWA: ❌ matchResult failure: \(err)")
+                            case .failure:
+                                break
                             }
                         }
                     }
-                    print("🔐 SIWA: no existing user — starting createNewUserFlow")
                     self.createNewUserFlow(credential: credential, cloudKitUserRecordID: recordID)
 
                 case .failure(let error):
-                    print("🔐 SIWA: ❌ CK query failed: \(error)")
                     self.errorMessage = "Failed to check existing account: \(error.localizedDescription)"
                 }
             }
@@ -156,7 +143,6 @@ final class AuthViewModel: ObservableObject {
     }
 
     private func createNewUserFlow(credential: ASAuthorizationAppleIDCredential, cloudKitUserRecordID: CKRecord.ID) {
-        print("🔐 SIWA: createNewUserFlow — setting needsUsernameSelection=true")
         // ADDED: Generate unique userID for new user
         let userID = UUID().uuidString
         
@@ -272,17 +258,18 @@ final class AuthViewModel: ObservableObject {
         
         container.publicCloudDatabase.fetch(withRecordID: recordID) { record, error in
             Task { @MainActor in
+                // Don't overwrite a fresh sign-in that completed while we were fetching
+                guard self.signedInUser == nil else { return }
+
                 if let error = error {
                     self.errorMessage = "Failed to restore user: \(error.localizedDescription)"
-                    self.signedInUser = nil
                     return
                 }
                 guard let record = record else {
                     self.errorMessage = "No CloudKit record found."
-                    self.signedInUser = nil
                     return
                 }
-                
+
                 do {
                     let user = try User(record: record)
                     self.signedInUser = user
