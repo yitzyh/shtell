@@ -1,7 +1,8 @@
 {
   "functions": {
-    "api/browse-content.js": {
-      "maxDuration": 10
-    }
+    "api/browse-content.js": { "maxDuration": 10 },
+    "api/users.js": { "maxDuration": 10 },
+    "api/comments.js": { "maxDuration": 10 },
+    "api/saved-pages.js": { "maxDuration": 10 }
   }
 }
