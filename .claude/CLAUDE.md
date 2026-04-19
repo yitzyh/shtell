@@ -165,7 +165,7 @@ comments:                         # 1.3.0
 
 saved-webpages:                   # 1.3.0
   PK: userID (S), SK: urlString (S)
-  Fields: userID, urlString, title, domain, dateSaved
+  Fields: userID, urlString, title, domain, dateSaved, thumbnailURL?, faviconURL?
 
 # --- 1.4.0 ---
 

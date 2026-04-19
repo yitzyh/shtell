@@ -34,7 +34,7 @@
 ## Phase 1: New Models — no CloudKit dependency
 - [ ] `DumFlow/Models/User.swift` — Codable, replaces CK_User.swift
 - [ ] `DumFlow/Features/Comments/Models/Comment.swift` — Codable, replaces CK_Comment.swift, no likes/saves
-- [ ] `DumFlow/Features/WebPages/Models/SavedPage.swift` — new Codable struct
+- [ ] `DumFlow/Features/WebPages/Models/SavedWebPage.swift` — new Codable struct
 - [ ] `DumFlow/Features/Browser/Models/BrowserHistoryEntry.swift` — new, local-only
 
 ## Phase 2: Vercel API Routes
@@ -47,7 +47,7 @@
 - [ ] `DumFlow/Services/ShtellAPIClient.swift` — async URLSession singleton
 - [ ] `DumFlow/Services/UserAPIService.swift`
 - [ ] `DumFlow/Services/CommentAPIService.swift`
-- [ ] `DumFlow/Services/SavedPagesAPIService.swift`
+- [ ] `DumFlow/Services/SavedWebPagesAPIService.swift`
 - [ ] `DumFlow/Services/LocalHistoryService.swift` — UserDefaults/JSON, no network
 
 ## Phase 4: Rewrite AuthViewModel
