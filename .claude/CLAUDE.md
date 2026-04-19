@@ -12,7 +12,7 @@ Clear, scannable, and progressively detailed
 
 ## Executive Summary (30-Second Read)
 
-**Shtell** (formerly DumFlow) is an iOS browser reimagining web discovery through curated content and social commenting. Version 1.0.0 features BrowseForward content discovery, full comment system, and Sign In with Apple. TestFlight 2.1.0 introduces TikTok-style vertical navigation with instant preloaded content.
+**Shtell** (formerly DumFlow) is an iOS browser reimagining web discovery through curated content and social commenting. Version 1.2.0 is on TestFlight with BrowseForward, comments, SIWA, and saved pages. Version 1.3.0 migrates everything from CloudKit to AWS DynamoDB for stability and zero iCloud dependency.
 
 **Current Features:**
 - **BrowseForward:** Pull-down for curated content across 5 categories
@@ -62,16 +62,11 @@ open DumFlow.xcodeproj  # Legacy name in Xcode
     AWS DynamoDB   Sign in with Apple
 ```
 
-### Current Sprint: TestFlight 2.1.0
+### Current Sprint: 1.3.0 — CloudKit → AWS Migration
 
-**Feature:** Dual-axis navigation (vertical + horizontal)
-**Status:** Development Day 1 of 4
-**Teams:**
-- Tab 3: Vertical navigation (TikTok-style)
-- Tab 4: Horizontal tabs
-- Tab 5: Bottom toolbar UI
-- Tab 6: WebView pool management
-- Tab 7: Documentation (this system)
+**Goal:** Zero CloudKit dependency. DynamoDB via Vercel proxy for users, comments, saved pages. History goes local-only.
+**Current TestFlight:** 1.2.0 (build 5)
+**Status:** Pre-implementation (tables not yet created)
 
 ### Key Technologies
 
@@ -147,24 +142,56 @@ POST /api/auth/signin            // Apple auth
 ```
 
 #### DynamoDB Schema
+
+Naming convention: lowercase, hyphenated, no prefix. All tables use On-demand billing.
+
 ```yaml
-Tables:
-  bfQueue:       # Browse content queue
-    - url: string (PK)
-    - category: string
-    - score: number
-    - metadata: json
+# --- 1.3.0 (current) ---
 
-  Users:         # User profiles
-    - userID: string (PK)
-    - email: string
-    - username: string
+webpages:                         # Browse content queue (existing)
+  PK: url (S)
+  GSIs: category-index, score-index
 
-  Comments:      # User comments
-    - commentID: string (PK)
-    - url: string (GSI)
-    - userID: string
-    - content: string
+users:                            # 1.3.0
+  PK: userID (S)
+  GSIs: appleUserID-index, username-index
+  Fields: userID, appleUserID, username, displayName, dateCreated
+
+comments:                         # 1.3.0
+  PK: urlString (S), SK: commentID (S)
+  GSIs: userID-index
+  Fields: urlString, commentID, text, userID, username, dateCreated,
+          parentCommentID?, quotedText?, quotedTextSelector?, quotedTextOffset?
+
+saved-webpages:                   # 1.3.0
+  PK: userID (S), SK: urlString (S)
+  Fields: userID, urlString, title, domain, dateSaved
+
+# --- 1.4.0 ---
+
+comment-likes:                    # 1.4.0
+  PK: commentID (S), SK: userID (S)
+
+webpage-likes:                    # 1.4.0
+  PK: urlString (S), SK: userID (S)
+
+saved-comments:                   # 1.4.0
+  PK: userID (S), SK: commentID (S)
+
+follows:                          # 1.4.0
+  PK: followerID (S), SK: followedID (S)
+  GSIs: followedID-index (for "who follows me")
+
+blocks:                           # 1.4.0
+  PK: userID (S), SK: blockedID (S)
+
+mutes:                            # 1.4.0
+  PK: userID (S), SK: mutedID (S)
+
+# --- 2.0 ---
+
+notifications:                    # 2.0
+  PK: userID (S), SK: createdAt#notificationID (S)
 ```
 
 ### File Structure
@@ -235,25 +262,31 @@ Structured data, clear boundaries, no ambiguity
 ```yaml
 app_name: Shtell
 former_name: DumFlow
-current_version: 2.1.0-dev
-previous_release: 1.0.0
+testflight_version: 1.2.0_build_5
+current_dev_version: 1.3.0
 status: active_development
-sprint: TestFlight_2.1.0
-timeline: 4_days
-day: 1_of_4
+sprint: CloudKit_to_AWS_migration
 ```
 
 ### ACTIVE_FEATURE_DEVELOPMENT
 ```yaml
-feature: dual_axis_navigation
+feature: CloudKit_to_AWS_migration
+version: 1.3.0
 components:
-  - vertical_navigation: Tab_3
-  - horizontal_tabs: Tab_4
-  - bottom_toolbar: Tab_5
-  - webview_pool: Tab_6
-  - documentation: Tab_7
+  - vercel_api_routes: users, comments, saved-pages
+  - dynamo_tables: shtell-users, shtell-comments, shtell-saved-pages
+  - ios_models: User, Comment, SavedPage, BrowserHistoryEntry (Codable)
+  - ios_services: ShtellAPIClient, UserAPIService, CommentAPIService, SavedPagesAPIService, LocalHistoryService
+  - ios_viewmodels: AuthViewModel rewrite, WebPageViewModel simplification
+  - cloudkit_deletion: CloudKit/ dir, CK_* models, *Like/*Save models, dead comment views
 priority: HIGH
-blockers: none
+blockers: DynamoDB_tables_not_yet_created
+deferred_to_1_4:
+  - comment_likes
+  - webpage_likes
+  - user_profiles
+  - follows_blocks_mutes
+  - xcode_project_rename
 ```
 
 ### TECHNICAL_STACK
@@ -303,21 +336,22 @@ testing:
 ### CURRENT_PRIORITIES
 ```yaml
 immediate:
-  1: Complete_vertical_navigation_component
-  2: Implement_horizontal_tab_switching
-  3: Create_bottom_toolbar_UI
-  4: Optimize_WebView_pool
-
-this_week:
-  1: TestFlight_2.1.0_release
-  2: Performance_optimization
-  3: Memory_management
-  4: Documentation_update
+  1: Create_DynamoDB_tables_in_AWS_console_(shtell-users,_shtell-comments,_shtell-saved-pages)
+  2: Deploy_Vercel_API_routes_(users,_comments,_saved-pages)
+  3: New_iOS_Codable_models_(Phase_1)
+  4: ShtellAPIClient_+_service_layer_(Phase_2)
+  5: Rewrite_AuthViewModel_(Phase_3)
+  6: Rewrite_WebPageViewModel_(Phase_4)
+  7: Clean_up_comment_views_(Phase_5)
+  8: Delete_CloudKit_infrastructure_(Phase_6)
+  9: Remove_import_CloudKit_from_all_files_(Phase_7)
+  10: Strip_entitlements_(Phase_8)
 
 next_sprint:
-  1: AdMob_integration
-  2: Categories_expansion
-  3: Social_features
+  1: Comment_likes_(1.4)
+  2: Webpage_likes_(1.4)
+  3: User_profiles_(1.4)
+  4: AdMob_integration
 ```
 
 ### API_CONTRACTS
@@ -369,29 +403,38 @@ deprecated:
 
 ### EXISTING_FEATURES
 ```yaml
-released_1_0_0:
+shipped_1_2_0:
   - BrowseForward_content_discovery
   - Pull_down_gesture_for_content
   - Category_selection_long_press
-  - Sign_in_with_Apple
+  - Sign_in_with_Apple (SIWA_fix_in_1.2.0)
   - Comment_system_with_quotes
   - Reply_threads
   - Saved_pages_with_metadata
   - Share_to_Shtell_extension
   - Custom_shtell_protocol
+  - CloudKit_backend (BEING_REPLACED)
 
-in_development_2_1_0:
-  - TikTok_vertical_navigation
-  - Horizontal_tab_switching
-  - Bottom_toolbar_with_favicons
-  - WebView_pool_9_instances
-  - Dual_axis_gestures
+in_development_1_3_0:
+  - CloudKit_to_DynamoDB_migration
+  - New_Vercel_API_routes_(users,_comments,_saved-pages)
+  - Local_browser_history_(no_network)
+  - Simplified_comment_model_(no_likes)
 
-planned_2_2_0:
-  - AWS_migration_from_CloudKit
+planned_1_4_0:
+  - Comment_likes
+  - Webpage_likes
+  - User_profiles_(photo,_bio)
+  - Follows_blocks_mutes
+
+planned_2_x:
   - Cognito_authentication
   - Tab_persistence
   - WebView_optimization
+  - TikTok_vertical_navigation
+  - Horizontal_tab_switching
+  - Bottom_toolbar_with_favicons
+  - AdMob_integration
 
 planned_3_0_0:
   - User_profiles
