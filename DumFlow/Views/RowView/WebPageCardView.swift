@@ -1,5 +1,4 @@
 import SwiftUI
-import CloudKit
 
 struct WebPageCardView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -166,20 +165,12 @@ struct WebPageCardView: View {
     let authViewModel = AuthViewModel()
     let webPageViewModel = WebPageViewModel(authViewModel: authViewModel)
     
-    return WebPageCardView(
+    WebPageCardView(
         webPage: WebPage(
-            id: CKRecord.ID(recordName: "preview-id"),
             urlString: "https://example.com/article",
             title: "This is a sample article title that might be a bit longer",
             domain: "example.com",
-            dateCreated: Date(),
-            commentCount: 42,
-            likeCount: 0,
-            saveCount: 0,
-            isReported: 0,
-            reportCount: 0,
-            faviconData: nil,
-            thumbnailData: nil
+            commentCount: 42
         )
     )
     .environmentObject(webPageViewModel)

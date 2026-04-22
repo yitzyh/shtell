@@ -9,7 +9,8 @@ export const dynamodb = new AWS.DynamoDB({
 export const TABLES = {
   USERS: 'users',
   COMMENTS: 'comments',
-  SAVED_PAGES: 'saved-webpages'
+  SAVED_PAGES: 'saved-webpages',
+  PAGES: 'webpages-meta'
 };
 
 export const { unmarshall, marshall } = AWS.DynamoDB.Converter;

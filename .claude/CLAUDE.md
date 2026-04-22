@@ -12,7 +12,7 @@ Clear, scannable, and progressively detailed
 
 ## Executive Summary (30-Second Read)
 
-**Shtell** (formerly DumFlow) is an iOS browser reimagining web discovery through curated content and social commenting. Version 1.2.0 is on TestFlight with BrowseForward, comments, SIWA, and saved pages. Version 1.3.0 migrates everything from CloudKit to AWS DynamoDB for stability and zero iCloud dependency.
+**Shtell** (formerly DumFlow) is an iOS browser reimagining web discovery through curated content and social commenting. Version 1.3.0 (build 6) is on TestFlight — zero CloudKit, full AWS DynamoDB backend, social comment feeds, and TrendPageView. Next sprint: 1.4.0 (likes, follows, user profiles).
 
 **Current Features:**
 - **BrowseForward:** Pull-down for curated content across 5 categories
@@ -62,11 +62,11 @@ open DumFlow.xcodeproj  # Legacy name in Xcode
     AWS DynamoDB   Sign in with Apple
 ```
 
-### Current Sprint: 1.3.0 — CloudKit → AWS Migration
+### Current Sprint: 1.4.0 — Likes, Follows, User Profiles
 
-**Goal:** Zero CloudKit dependency. DynamoDB via Vercel proxy for users, comments, saved pages. History goes local-only.
-**Current TestFlight:** 1.2.0 (build 5)
-**Status:** Pre-implementation (tables not yet created)
+**Shipped:** 1.3.0 (build 6) — CloudKit fully removed, AWS DynamoDB live, TrendPageView, ViewUserView
+**Current TestFlight:** 1.3.0 (build 6)
+**Next:** Comment likes, webpage likes, user profiles, follows/blocks/mutes
 
 ### Key Technologies
 
@@ -262,10 +262,10 @@ Structured data, clear boundaries, no ambiguity
 ```yaml
 app_name: Shtell
 former_name: DumFlow
-testflight_version: 1.2.0_build_5
-current_dev_version: 1.3.0
+testflight_version: 1.3.0_build_6
+current_dev_version: 1.4.0
 status: active_development
-sprint: CloudKit_to_AWS_migration
+sprint: likes_follows_user_profiles
 ```
 
 ### ACTIVE_FEATURE_DEVELOPMENT
@@ -336,22 +336,17 @@ testing:
 ### CURRENT_PRIORITIES
 ```yaml
 immediate:
-  1: Create_DynamoDB_tables_in_AWS_console_(shtell-users,_shtell-comments,_shtell-saved-pages)
-  2: Deploy_Vercel_API_routes_(users,_comments,_saved-pages)
-  3: New_iOS_Codable_models_(Phase_1)
-  4: ShtellAPIClient_+_service_layer_(Phase_2)
-  5: Rewrite_AuthViewModel_(Phase_3)
-  6: Rewrite_WebPageViewModel_(Phase_4)
-  7: Clean_up_comment_views_(Phase_5)
-  8: Delete_CloudKit_infrastructure_(Phase_6)
-  9: Remove_import_CloudKit_from_all_files_(Phase_7)
-  10: Strip_entitlements_(Phase_8)
-
-next_sprint:
   1: Comment_likes_(1.4)
   2: Webpage_likes_(1.4)
-  3: User_profiles_(1.4)
-  4: AdMob_integration
+  3: User_profiles_photo_bio_(1.4)
+  4: Follows_blocks_mutes_(1.4)
+  5: JWT_token_verification_in_Vercel_(security)
+  6: Xcode_project_rename_DumFlow_to_Shtell
+
+next_sprint:
+  1: AdMob_native_ads_(2.x)
+  2: Cognito_authentication_(2.x)
+  3: Social_feeds_activity_timeline_(3.x)
 ```
 
 ### API_CONTRACTS
@@ -403,23 +398,22 @@ deprecated:
 
 ### EXISTING_FEATURES
 ```yaml
+shipped_1_3_0:
+  - CloudKit_fully_removed
+  - AWS_DynamoDB_backend_(users,_comments,_saved-webpages,_webpages-meta)
+  - Vercel_API_routes_(users,_comments,_saved-webpages,_pages)
+  - TrendPageView_(social_post_feed_of_commented_pages)
+  - ViewUserView_(user_comment_history)
+  - Local_browser_history_(no_iCloud)
+  - Split_tap_navigation_(favicon_opens_page,_comment_count_opens_sheet)
+  - webpages-meta_backfill_script
+
 shipped_1_2_0:
   - BrowseForward_content_discovery
-  - Pull_down_gesture_for_content
-  - Category_selection_long_press
-  - Sign_in_with_Apple (SIWA_fix_in_1.2.0)
-  - Comment_system_with_quotes
-  - Reply_threads
-  - Saved_pages_with_metadata
+  - Sign_in_with_Apple
+  - Comment_system_with_quotes_and_replies
+  - Saved_pages
   - Share_to_Shtell_extension
-  - Custom_shtell_protocol
-  - CloudKit_backend (BEING_REPLACED)
-
-in_development_1_3_0:
-  - CloudKit_to_DynamoDB_migration
-  - New_Vercel_API_routes_(users,_comments,_saved-pages)
-  - Local_browser_history_(no_network)
-  - Simplified_comment_model_(no_likes)
 
 planned_1_4_0:
   - Comment_likes
@@ -504,6 +498,5 @@ app_store:
 
 ---
 
-*Last Updated: January 16, 2025*
-*Documentation Version: 2.0*
-*Maintained by: Tab 7 - Documentation System*
+*Last Updated: April 21, 2026*
+*Documentation Version: 3.0*

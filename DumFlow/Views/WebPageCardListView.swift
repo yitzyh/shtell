@@ -1,5 +1,4 @@
 import SwiftUI
-import CloudKit
 
 // MARK: - BrowseForwardCardView
 struct BrowseForwardCardView: View {

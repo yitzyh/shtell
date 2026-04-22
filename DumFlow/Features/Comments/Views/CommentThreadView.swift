@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import CloudKit
 
 struct CommentThreadView: View {
     @EnvironmentObject var webPageViewModel: WebPageViewModel
@@ -168,7 +167,7 @@ struct ReplyRowView: View {
                         .font(.caption2)
                         .bold()
                     
-                    Text(reply.dateCreated.timeAgoShort())
+                    Text(reply.timeAgoShort)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .padding(.leading, 6)
@@ -360,13 +359,12 @@ struct ReplyRowView: View {
 
 // Sample data
 private let sampleParentComment = Comment(
-    id: CKRecord.ID(recordName: "parent1"),
     commentID: "parent1",
+    urlString: "https://example.com",
     text: "This article really opened my eyes to sustainable development. The renewable energy section was particularly insightful!",
-    dateCreated: Date().addingTimeInterval(-3600),
     userID: "user1",
     username: "GreenEnthusiast",
-    urlString: "https://example.com",
+    dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3600)),
     parentCommentID: nil,
     quotedText: "renewable energy is the future",
     quotedTextSelector: nil,
@@ -378,8 +376,8 @@ private let sampleParentComment = Comment(
 )
 
 private let sampleLongComment = Comment(
-    id: CKRecord.ID(recordName: "parent2"),
     commentID: "parent2",
+    urlString: "https://example.com",
     text: """
     This is a comprehensive comment that demonstrates the Read More functionality.
     Line 2: I want to discuss several key points from this article.
@@ -392,10 +390,9 @@ private let sampleLongComment = Comment(
     Line 9: This additional content appears after expanding.
     Line 10: Thanks for sharing this important article with the community!
     """,
-    dateCreated: Date().addingTimeInterval(-7200),
     userID: "user2",
     username: "ThoughtfulReader",
-    urlString: "https://example.com",
+    dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-7200)),
     parentCommentID: nil,
     quotedText: nil,
     quotedTextSelector: nil,
@@ -409,13 +406,12 @@ private let sampleLongComment = Comment(
 private let sampleReplies: [Comment] = [
     // Replies to parent1
     Comment(
-        id: CKRecord.ID(recordName: "reply1"),
         commentID: "reply1",
+        urlString: "https://example.com",
         text: "Totally agree! The renewable energy stats were mind-blowing.",
-        dateCreated: Date().addingTimeInterval(-2400),
         userID: "user3",
         username: "EcoWarrior",
-        urlString: "https://example.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-2400)),
         parentCommentID: "parent1",
         quotedText: nil,
         quotedTextSelector: nil,
@@ -426,13 +422,12 @@ private let sampleReplies: [Comment] = [
         reportCount: 0
     ),
     Comment(
-        id: CKRecord.ID(recordName: "reply2"),
         commentID: "reply2",
+        urlString: "https://example.com",
         text: "What about the economic implications? I'm curious about the cost-benefit analysis.",
-        dateCreated: Date().addingTimeInterval(-1800),
         userID: "user4",
         username: "Economist101",
-        urlString: "https://example.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1800)),
         parentCommentID: "parent1",
         quotedText: nil,
         quotedTextSelector: nil,
@@ -443,13 +438,12 @@ private let sampleReplies: [Comment] = [
         reportCount: 0
     ),
     Comment(
-        id: CKRecord.ID(recordName: "reply3"),
         commentID: "reply3",
+        urlString: "https://example.com",
         text: "The article actually covers economics in section 3. Worth a read!",
-        dateCreated: Date().addingTimeInterval(-1200),
         userID: "user1",
         username: "GreenEnthusiast",
-        urlString: "https://example.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1200)),
         parentCommentID: "parent1",
         quotedText: "economic implications",
         quotedTextSelector: nil,
@@ -460,13 +454,12 @@ private let sampleReplies: [Comment] = [
         reportCount: 0
     ),
     Comment(
-        id: CKRecord.ID(recordName: "reply4"),
         commentID: "reply4",
+        urlString: "https://example.com",
         text: "Has anyone tried implementing these strategies at their workplace?",
-        dateCreated: Date().addingTimeInterval(-900),
         userID: "user5",
         username: "CorporateGreen",
-        urlString: "https://example.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-900)),
         parentCommentID: "parent1",
         quotedText: nil,
         quotedTextSelector: nil,
@@ -477,13 +470,12 @@ private let sampleReplies: [Comment] = [
         reportCount: 0
     ),
     Comment(
-        id: CKRecord.ID(recordName: "reply5"),
         commentID: "reply5",
+        urlString: "https://example.com",
         text: "We started a pilot program last month. Happy to share our experience if anyone's interested!",
-        dateCreated: Date().addingTimeInterval(-600),
         userID: "user6",
         username: "StartupFounder",
-        urlString: "https://example.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-600)),
         parentCommentID: "parent1",
         quotedText: nil,
         quotedTextSelector: nil,
@@ -493,16 +485,15 @@ private let sampleReplies: [Comment] = [
         isReported: 0,
         reportCount: 0
     ),
-    
+
     // Replies to parent2
     Comment(
-        id: CKRecord.ID(recordName: "reply6"),
         commentID: "reply6",
+        urlString: "https://example.com",
         text: "Your analysis is spot on! The Nordic case studies were my favorite part too.",
-        dateCreated: Date().addingTimeInterval(-3000),
         userID: "user7",
         username: "PolicyWonk",
-        urlString: "https://example.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3000)),
         parentCommentID: "parent2",
         quotedText: nil,
         quotedTextSelector: nil,

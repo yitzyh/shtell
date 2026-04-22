@@ -7,7 +7,6 @@
 //import SwiftData
 import SwiftUI
 import Foundation
-import CloudKit
 
 // to fix comment/reply issue: make temporary commentoreply that is set in button and passed into sheet once
 
@@ -429,6 +428,73 @@ struct CommentView: View {
 
 // MARK: - Preview
 
+private struct PreviewCommentView: View {
+    let webPageViewModel: WebPageViewModel
+
+    var body: some View {
+        NavigationStack{
+            ZStack(alignment: .bottom) {
+                VStack(spacing: 0){
+                    // Header
+                    ZStack {
+                        Text("Comments")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        HStack {
+                            Spacer()
+                            Button("✕") { }
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 12)
+
+                    // Comments list with expanded replies
+                    List {
+                        ForEach(webPageViewModel.contentState.comments.filter { $0.parentCommentID == nil }) { comment in
+                            VStack(alignment: .leading, spacing: 0) {
+                                CommentRowView(
+                                    comment: comment,
+                                    replyComment: .constant(nil),
+                                    onQuoteTap: nil
+                                )
+
+                                let replies = webPageViewModel.contentState.comments
+                                    .filter { $0.parentCommentID == comment.commentID }
+                                    .sorted { $0.dateCreated < $1.dateCreated }
+
+                                if !replies.isEmpty {
+                                    VStack(spacing: 8) {
+                                        ForEach(replies) { reply in
+                                            ReplyRowView(
+                                                reply: reply,
+                                                replyComment: .constant(nil),
+                                                onQuoteTap: nil
+                                            )
+                                        }
+                                    }
+                                    .padding(.leading, 20)
+                                    .padding(.top, 12)
+                                }
+                            }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        }
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            webPageViewModel.loadingState.isLoadingComments = false
+            webPageViewModel.loadingState.error = nil
+            webPageViewModel.loadingState.showErrorAlert = false
+        }
+    }
+}
+
 #Preview {
     let authViewModel = AuthViewModel()
     let webBrowser = WebBrowser(urlString: "https://www.apple.com")
@@ -436,13 +502,12 @@ struct CommentView: View {
     
     // Create mock parent comment 1
     let parentComment1 = Comment(
-        id: CKRecord.ID(recordName: "parent-comment-1"),
         commentID: "parent-comment-1-id",
+        urlString: "https://www.apple.com",
         text: "This is a great article about Apple's latest innovations!",
-        dateCreated: Date().addingTimeInterval(-3600), // 1 hour ago
         userID: "user1",
         username: "techenthusiast",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3600)), // 1 hour ago
         likeCount: 12,
         saveCount: 3,
         isReported: 0,
@@ -451,43 +516,40 @@ struct CommentView: View {
     
     // Create replies for parent comment 1
     let reply1_1 = Comment(
-        id: CKRecord.ID(recordName: "reply-1-1"),
         commentID: "reply-1-1-id",
+        urlString: "https://www.apple.com",
         text: "I completely agree! The new features are game-changing.",
-        dateCreated: Date().addingTimeInterval(-2400), // 40 minutes ago
         userID: "user2",
         username: "applefan",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-2400)), // 40 minutes ago
         parentCommentID: "parent-comment-1-id",
         likeCount: 5,
         saveCount: 1,
         isReported: 0,
         reportCount: 0
     )
-    
+
     let reply1_2 = Comment(
-        id: CKRecord.ID(recordName: "reply-1-2"),
         commentID: "reply-1-2-id",
+        urlString: "https://www.apple.com",
         text: "Has anyone tried the beta version yet? Would love to hear your thoughts.",
-        dateCreated: Date().addingTimeInterval(-1800), // 30 minutes ago
         userID: "user3",
         username: "betatester",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1800)), // 30 minutes ago
         parentCommentID: "parent-comment-1-id",
         likeCount: 8,
         saveCount: 2,
         isReported: 0,
         reportCount: 0
     )
-    
+
     let reply1_3 = Comment(
-        id: CKRecord.ID(recordName: "reply-1-3"),
         commentID: "reply-1-3-id",
+        urlString: "https://www.apple.com",
         text: "Thanks for sharing this! Really helpful insights 👍",
-        dateCreated: Date().addingTimeInterval(-1200), // 20 minutes ago
         userID: "user4",
         username: "devcommunity",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1200)), // 20 minutes ago
         parentCommentID: "parent-comment-1-id",
         likeCount: 3,
         saveCount: 0,
@@ -497,13 +559,12 @@ struct CommentView: View {
     
     // Create mock parent comment 2
     let parentComment2 = Comment(
-        id: CKRecord.ID(recordName: "parent-comment-2"),
         commentID: "parent-comment-2-id",
+        urlString: "https://www.apple.com",
         text: "This is a great article about Apple's latest innovations!",
-        dateCreated: Date().addingTimeInterval(-5400), // 1.5 hours ago
         userID: "user5",
         username: "techenthusiast2",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-5400)), // 1.5 hours ago
         likeCount: 15,
         saveCount: 4,
         isReported: 0,
@@ -512,43 +573,40 @@ struct CommentView: View {
     
     // Create replies for parent comment 2
     let reply2_1 = Comment(
-        id: CKRecord.ID(recordName: "reply-2-1"),
         commentID: "reply-2-1-id",
+        urlString: "https://www.apple.com",
         text: "I completely agree! The new features are game-changing.",
-        dateCreated: Date().addingTimeInterval(-4800), // 80 minutes ago
         userID: "user6",
         username: "applefan2",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-4800)), // 80 minutes ago
         parentCommentID: "parent-comment-2-id",
         likeCount: 7,
         saveCount: 2,
         isReported: 0,
         reportCount: 0
     )
-    
+
     let reply2_2 = Comment(
-        id: CKRecord.ID(recordName: "reply-2-2"),
         commentID: "reply-2-2-id",
+        urlString: "https://www.apple.com",
         text: "Has anyone tried the beta version yet? Would love to hear your thoughts.",
-        dateCreated: Date().addingTimeInterval(-4200), // 70 minutes ago
         userID: "user7",
         username: "betatester2",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-4200)), // 70 minutes ago
         parentCommentID: "parent-comment-2-id",
         likeCount: 6,
         saveCount: 1,
         isReported: 0,
         reportCount: 0
     )
-    
+
     let reply2_3 = Comment(
-        id: CKRecord.ID(recordName: "reply-2-3"),
         commentID: "reply-2-3-id",
+        urlString: "https://www.apple.com",
         text: "Thanks for sharing this! Really helpful insights 👍",
-        dateCreated: Date().addingTimeInterval(-3600), // 60 minutes ago
         userID: "user8",
         username: "devcommunity2",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3600)), // 60 minutes ago
         parentCommentID: "parent-comment-2-id",
         likeCount: 4,
         saveCount: 1,
@@ -558,13 +616,12 @@ struct CommentView: View {
     
     // Create mock parent comment 3
     let parentComment3 = Comment(
-        id: CKRecord.ID(recordName: "parent-comment-3"),
         commentID: "parent-comment-3-id",
+        urlString: "https://www.apple.com",
         text: "This is a great article about Apple's latest innovations!",
-        dateCreated: Date().addingTimeInterval(-7200), // 2 hours ago
         userID: "user9",
         username: "techenthusiast3",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-7200)), // 2 hours ago
         likeCount: 20,
         saveCount: 6,
         isReported: 0,
@@ -573,43 +630,40 @@ struct CommentView: View {
     
     // Create replies for parent comment 3
     let reply3_1 = Comment(
-        id: CKRecord.ID(recordName: "reply-3-1"),
         commentID: "reply-3-1-id",
+        urlString: "https://www.apple.com",
         text: "I completely agree! The new features are game-changing.",
-        dateCreated: Date().addingTimeInterval(-6600), // 110 minutes ago
         userID: "user10",
         username: "applefan3",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-6600)), // 110 minutes ago
         parentCommentID: "parent-comment-3-id",
         likeCount: 9,
         saveCount: 3,
         isReported: 0,
         reportCount: 0
     )
-    
+
     let reply3_2 = Comment(
-        id: CKRecord.ID(recordName: "reply-3-2"),
         commentID: "reply-3-2-id",
+        urlString: "https://www.apple.com",
         text: "Has anyone tried the beta version yet? Would love to hear your thoughts.",
-        dateCreated: Date().addingTimeInterval(-6000), // 100 minutes ago
         userID: "user11",
         username: "betatester3",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-6000)), // 100 minutes ago
         parentCommentID: "parent-comment-3-id",
         likeCount: 11,
         saveCount: 4,
         isReported: 0,
         reportCount: 0
     )
-    
+
     let reply3_3 = Comment(
-        id: CKRecord.ID(recordName: "reply-3-3"),
         commentID: "reply-3-3-id",
+        urlString: "https://www.apple.com",
         text: "Thanks for sharing this! Really helpful insights 👍",
-        dateCreated: Date().addingTimeInterval(-5400), // 90 minutes ago
         userID: "user12",
         username: "devcommunity3",
-        urlString: "https://www.apple.com",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-5400)), // 90 minutes ago
         parentCommentID: "parent-comment-3-id",
         likeCount: 5,
         saveCount: 2,
@@ -617,98 +671,16 @@ struct CommentView: View {
         reportCount: 0
     )
     
-    // Set up the mock data
-    webPageViewModel.contentState.comments = [
-        parentComment1, reply1_1, reply1_2, reply1_3,
-        parentComment2, reply2_1, reply2_2, reply2_3,
-        parentComment3, reply3_1, reply3_2, reply3_3
-    ]
-    
-    // Create a mock CKRecord for WebPage
-    let mockRecord = CKRecord(recordType: "WebPage", recordID: CKRecord.ID(recordName: "mock-webpage"))
-    mockRecord["urlString"] = "https://www.apple.com"
-    mockRecord["title"] = "Apple - Official Site"
-    mockRecord["domain"] = "apple.com"
-    mockRecord["dateCreated"] = Date()
-    mockRecord["commentCount"] = 4 // Parent + 3 replies
-    mockRecord["likeCount"] = 0
-    mockRecord["saveCount"] = 0
-    mockRecord["isReported"] = 0
-    mockRecord["reportCount"] = 0
-    
-    // Create WebPage from the mock record
-    let mockWebPage = try! WebPage(record: mockRecord)
-    webPageViewModel.contentState.webPage = mockWebPage
-    
-    struct PreviewCommentView: View {
-        let webPageViewModel: WebPageViewModel
-        
-        var body: some View {
-            NavigationStack{
-                ZStack(alignment: .bottom) {
-                    VStack(spacing: 0){
-                        // Header
-                        ZStack {
-                            Text("Comments")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            HStack {
-                                Spacer()
-                                Button("✕") { }
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 12)
-                        
-                        // Comments list with expanded replies
-                        List {
-                            ForEach(webPageViewModel.contentState.comments.filter { $0.parentCommentID == nil }) { comment in
-                                VStack(alignment: .leading, spacing: 0) {
-                                    CommentRowView(
-                                        comment: comment,
-                                        replyComment: .constant(nil),
-                                        onQuoteTap: nil
-                                    )
-                                    
-                                    let replies = webPageViewModel.contentState.comments
-                                        .filter { $0.parentCommentID == comment.commentID }
-                                        .sorted { $0.dateCreated < $1.dateCreated }
-                                    
-                                    if !replies.isEmpty {
-                                        VStack(spacing: 8) {
-                                            ForEach(replies) { reply in
-                                                ReplyRowView(
-                                                    reply: reply,
-                                                    replyComment: .constant(nil),
-                                                    onQuoteTap: nil
-                                                )
-                                            }
-                                        }
-                                        .padding(.leading, 20)
-                                        .padding(.top, 12)
-                                    }
-                                }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                            }
-                        }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
-                    }
-                }
-            }
-            .navigationBarHidden(true)
-            .onAppear {
-                webPageViewModel.loadingState.isLoadingComments = false
-                webPageViewModel.loadingState.error = nil
-                webPageViewModel.loadingState.showErrorAlert = false
-            }
-        }
-    }
-    
-    return PreviewCommentView(webPageViewModel: webPageViewModel)
+    PreviewCommentView(webPageViewModel: webPageViewModel)
         .environmentObject(authViewModel)
         .environmentObject(webBrowser)
         .environmentObject(webPageViewModel)
+        .onAppear {
+            webPageViewModel.contentState.comments = [
+                parentComment1, reply1_1, reply1_2, reply1_3,
+                parentComment2, reply2_1, reply2_2, reply2_3,
+                parentComment3, reply3_1, reply3_2, reply3_3
+            ]
+            webPageViewModel.contentState.webPage = WebPage(urlString: "https://developer.apple.com/documentation/swiftui", title: "SwiftUI Documentation", domain: "developer.apple.com")
+        }
 }

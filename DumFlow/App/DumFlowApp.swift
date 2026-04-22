@@ -7,7 +7,6 @@
 
 import SwiftData
 import SwiftUI
-import CloudKit
 
 @main
 struct DumFlowApp: App {
@@ -23,7 +22,6 @@ struct DumFlowApp: App {
         print("🚀 DumFlowApp init started")
 
         print("🚀 Creating AuthViewModel...")
-        // ✅ Use pure CloudKit setup
         let authStart = CFAbsoluteTimeGetCurrent()
         let auth = AuthViewModel()
         _authViewModel = StateObject(wrappedValue: auth)

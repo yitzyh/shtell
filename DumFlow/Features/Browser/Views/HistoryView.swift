@@ -7,27 +7,26 @@
 //
 
 import SwiftUI
-import CloudKit
 
 struct HistoryView: View {
     @EnvironmentObject var webPageViewModel: WebPageViewModel
     @EnvironmentObject var webBrowser: WebBrowser
     @Environment(\.dismiss) private var dismiss
-    
+
     @State private var searchText = ""
-    
-    var filteredHistory: [BrowserHistory] {
+
+    var filteredHistory: [BrowserHistoryEntry] {
         let history = webPageViewModel.browserHistoryService.recentHistory
-        
+
         // Apply search filter only
         if !searchText.isEmpty {
             return history.filter { entry in
-                entry.urlString.localizedCaseInsensitiveContains(searchText) ||
+                entry.url.localizedCaseInsensitiveContains(searchText) ||
                 entry.title?.localizedCaseInsensitiveContains(searchText) == true ||
                 entry.domain.localizedCaseInsensitiveContains(searchText)
             }
         }
-        
+
         return history
     }
     
@@ -91,7 +90,7 @@ struct HistoryView: View {
                         ForEach(filteredHistory, id: \.id) { entry in
                             HistoryRowView(entry: entry) {
                                 // Navigate to URL
-                                webBrowser.urlString = entry.urlString
+                                webBrowser.urlString = entry.url
                                 webBrowser.isUserInitiatedNavigation = true
                                 dismiss()
                             }
@@ -162,9 +161,13 @@ struct HistoryView: View {
 }
 
 struct HistoryRowView: View {
-    let entry: BrowserHistory
+    let entry: BrowserHistoryEntry
     let onTap: () -> Void
-    
+
+    private var visitDate: Date? {
+        ISO8601DateFormatter().date(from: entry.dateVisited)
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
@@ -175,40 +178,28 @@ struct HistoryRowView: View {
                     .frame(width: 32, height: 32)
                     .background(Color.blue.opacity(0.1))
                     .clipShape(Circle())
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     // Title
-                    Text(entry.title ?? entry.urlString)
+                    Text(entry.title ?? entry.url)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                         .lineLimit(2)
-                    
+
                     // URL and domain
                     Text(entry.domain)
                         .font(.caption)
                         .foregroundColor(.blue)
-                    
-                    // Analytics info
-                    HStack(spacing: 8) {
-                        Text(formatTime(entry.dateVisited))
+
+                    // Time visited
+                    if let date = visitDate {
+                        Text(formatTime(date))
                             .font(.caption2)
                             .foregroundColor(.secondary)
-                        
-                        if entry.visitCount > 1 {
-                            Text("• \(entry.visitCount) visits")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        if let duration = entry.viewDuration, duration > 10 {
-                            Text("• \(Int(duration))s")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
                     }
                 }
-                
+
                 Spacer()
                 
                 Image(systemName: "chevron.right")

@@ -5,7 +5,6 @@
 //  Created by Isaac Herskowitz on 6/9/25.
 //
 import SwiftUI
-import CloudKit
 
 struct SavedItemsView: View {
     @EnvironmentObject private var authViewModel: AuthViewModel
@@ -40,7 +39,7 @@ struct SavedItemsView: View {
                         Spacer()
                     }
                 } else {
-                    List(webPageViewModel.contentState.followedUserComments, id: \.id.recordName) { comment in
+                    List(webPageViewModel.contentState.followedUserComments, id: \.id) { comment in
                         WebPageCommentRowView(
                             comment: comment,
                             commentsUrlString: $commentsUrlString,
@@ -66,16 +65,18 @@ struct SavedItemsView: View {
                         .foregroundColor(.secondary)
                         .padding()
                 } else {
-                    List(webPageViewModel.contentState.userComments.sorted { comment1, comment2 in
-                        return comment1.dateCreated > comment2.dateCreated
-                    }, id: \.id.recordName) { comment in
-                        WebPageCommentRowView(
+                    List(webPageViewModel.contentState.userComments, id: \.id) { comment in
+                        UserCommentRow(
                             comment: comment,
-                            commentsUrlString: $commentsUrlString,
-                            onDismiss: {
+                            onBrowse: {
+                                webBrowser.urlString = comment.urlString
+                                webBrowser.isUserInitiatedNavigation = true
+                                webBrowser.load(comment.urlString)
                                 presentationMode.wrappedValue.dismiss()
-                            }
+                            },
+                            onComment: { commentsUrlString = comment.urlString }
                         )
+                        .listRowSeparator(.hidden)
                     }
                     .listStyle(.plain)
                 }
@@ -98,7 +99,7 @@ struct SavedItemsView: View {
                         let date1 = webPageViewModel.contentState.commentSaveDates[comment1.commentID] ?? Date.distantPast
                         let date2 = webPageViewModel.contentState.commentSaveDates[comment2.commentID] ?? Date.distantPast
                         return date1 > date2
-                    }, id: \.id.recordName) { comment in
+                    }, id: \.id) { comment in
                         WebPageCommentRowView(
                             comment: comment,
                             commentsUrlString: $commentsUrlString,
@@ -463,13 +464,12 @@ struct WebPageCommentRowView: View {
     @Previewable @State var commentsUrlString: String? = nil
 
     let comment = Comment(
-        id: CKRecord.ID(recordName: "comment1"),
         commentID: "comment1-uuid",
+        urlString: "https://developer.apple.com/documentation/swiftui",
         text: "This is a great article! I really enjoyed reading about the new SwiftUI features and how they can improve our development workflow.",
-        dateCreated: Date().addingTimeInterval(-3600), // 1 hour ago
         userID: "user1-uuid",
         username: "alexdev",
-        urlString: "https://developer.apple.com/documentation/swiftui",
+        dateCreated: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3600)),
         likeCount: 15,
         saveCount: 3,
         isReported: 0,

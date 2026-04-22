@@ -54,20 +54,3 @@ struct WebPageThumbnail: View {
     }
 }
 
-// ✅ UPDATED: CloudKit-based preview
-//#Preview {
-//    let mockWebPage = WebPage(
-//        id: CKRecord.ID(recordName: "preview"),
-//        urlString: "https://apple.com",
-//        title: "Apple - Official Website",
-//        dateCreated: Date(),
-//        commentCount: 15,
-//        likeCount: 23,
-//        saveCount: 8,
-//        faviconData: nil,
-//        thumbnailData: nil
-//    )
-//    
-//    return WebPageThumbnail(webPage: mockWebPage)
-//        .padding()
-//}

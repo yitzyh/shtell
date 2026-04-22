@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject private var userService = UserService()
+    @State private var isUpdatingProfile = false
     @Environment(\.dismiss) var dismiss
     @State private var showSignOutConfirmation = false
     @State private var showEditUsername = false
@@ -165,29 +165,20 @@ struct ProfileView: View {
                     Divider()
                         .padding(.leading, 20)
                     
-                    // Bio Row
-                    profileRow(
-                        label: "Bio",
-                        value: authViewModel.signedInUser?.bio ?? "Add a bio",
-                        action: {
-                            editedBio = authViewModel.signedInUser?.bio ?? ""
-                            showEditBio = true
-                        }
-                    )
-                    
-                    Divider()
-                        .padding(.leading, 20)
-                    
                     // Member Since Row (read-only)
                     HStack {
                         Text("Member Since")
                             .font(.body)
                             .foregroundColor(.primary)
-                        
                         Spacer()
-                        
-                        Text(authViewModel.signedInUser?.dateCreated
-                            .formatted(.dateTime.year().month().day()) ?? "N/A")
+                        Text({
+                            guard let raw = authViewModel.signedInUser?.dateCreated,
+                                  let date = ISO8601DateFormatter().date(from: raw) else { return "N/A" }
+                            let f = DateFormatter()
+                            f.dateStyle = .medium
+                            f.timeStyle = .none
+                            return f.string(from: date)
+                        }())
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
@@ -229,7 +220,7 @@ struct ProfileView: View {
                 title: "Edit Username",
                 currentValue: editedUsername,
                 placeholder: "Enter username",
-                isUpdating: $userService.isLoading,
+                isUpdating: $isUpdatingProfile,
                 onSave: { newUsername in
                     updateUsername(newUsername)
                 },
@@ -243,7 +234,7 @@ struct ProfileView: View {
                 title: "Edit Display Name",
                 currentValue: editedDisplayName,
                 placeholder: "Enter display name",
-                isUpdating: $userService.isLoading,
+                isUpdating: $isUpdatingProfile,
                 onSave: { newDisplayName in
                     updateDisplayName(newDisplayName)
                 },
@@ -255,7 +246,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showEditBio) {
             EditBioSheet(
                 currentValue: editedBio,
-                isUpdating: $userService.isLoading,
+                isUpdating: $isUpdatingProfile,
                 onSave: { newBio in
                     updateBio(newBio)
                 },
@@ -292,59 +283,10 @@ struct ProfileView: View {
         .buttonStyle(.plain)
     }
     
-    private func updateUsername(_ newUsername: String) {
-        guard let user = authViewModel.signedInUser else { return }
-        
-        Task {
-            do {
-                try await userService.updateUsername(newUsername, for: user)
-                
-                await authViewModel.refreshUserData()
-                showEditUsername = false
-                authViewModel.errorMessage = nil
-            } catch {
-                await MainActor.run {
-                    authViewModel.errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-    
-    private func updateDisplayName(_ newDisplayName: String) {
-        guard let user = authViewModel.signedInUser else { return }
-        
-        Task {
-            do {
-                try await userService.updateDisplayName(newDisplayName, for: user)
-                
-                await authViewModel.refreshUserData()
-                showEditDisplayName = false
-                authViewModel.errorMessage = nil
-            } catch {
-                await MainActor.run {
-                    authViewModel.errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
-    
-    private func updateBio(_ newBio: String) {
-        guard let user = authViewModel.signedInUser else { return }
-        
-        Task {
-            do {
-                try await userService.updateBio(newBio, for: user)
-                
-                await authViewModel.refreshUserData()
-                showEditBio = false
-                authViewModel.errorMessage = nil
-            } catch {
-                await MainActor.run {
-                    authViewModel.errorMessage = error.localizedDescription
-                }
-            }
-        }
-    }
+    // TODO: 1.4 — implement via UserAPIService once update endpoints exist
+    private func updateUsername(_ newUsername: String) { showEditUsername = false }
+    private func updateDisplayName(_ newDisplayName: String) { showEditDisplayName = false }
+    private func updateBio(_ newBio: String) { showEditBio = false }
     
     private func saveForwardBrowsingPreferences() {
         guard let user = authViewModel.signedInUser else { return }

@@ -15,7 +15,8 @@
       "Bash(gh repo list:*)",
       "Bash(time curl:*)",
       "Bash(mkdir:*)",
-      "Bash(wc -l /Users/isaacherskowitz/Claude/_SHTELL/Shtell/DumFlow/**/*.swift | tail -20)"
+      "Bash(wc -l /Users/isaacherskowitz/Claude/_SHTELL/Shtell/DumFlow/**/*.swift | tail -20)",
+      "Bash(curl -s \"https://vercel-backend-azure-three.vercel.app/api/browse-content?category=Science&endpoint=items\")"
     ],
     "deny": [],
     "ask": []

@@ -1,69 +1,48 @@
 # Claude Context for Shtell
 
-## Recent Progress
+## Current Status
 
-⏺ Created: /docs/MVP_ROADMAP.md
+**Version on TestFlight:** 1.3.0 (build 6)
+**Active sprint:** 1.4.0 — Likes, follows, user profiles
 
-Contains:
-- Current state (1.1.0 stable)
-- MVP roadmap (1.1.x → 2.0.0)
-- Next step: 1.1.1 vertical swipe
-- Technical context
-- Key files
+See `.claude/CLAUDE.md` for full technical documentation.
+See `.claude/testflight-1.3.0.md` for completed 1.3.0 sprint tracking.
 
-## Tab Structure
+---
 
-**THIS TAB**: Progress tracking and coordination
-**NEW TAB**: Development work for 1.1.1
+## What Shipped in 1.3.0
 
-## Next Session Tasks (For New Development Tab)
+- **Zero CloudKit** — fully removed, no iCloud dependency
+- **AWS DynamoDB** backend: `users`, `comments`, `saved-webpages`, `webpages-meta`
+- **Vercel API routes**: `/api/users`, `/api/comments`, `/api/saved-webpages`, `/api/pages`
+- **TrendPageView** — social post-style feed of pages with comments (favicon as profile pic, title, thumbnail)
+- **ViewUserView** — user comment history with split tap (card → browse, comment → sheet)
+- **Local browser history** — on-device only, no network
+- **webpages-meta backfill** — `vercel-backend/scripts/backfill-pages.mjs`
+- **URL bar fix** — `PreloadedWebViewManager.initializeWebViews()` now guards against re-init on sheet dismiss
 
-### START HERE: Test Current Stable Version (1.1.0)
+## DynamoDB Tables (4 active)
 
-**Priority 1: Investigate iPhone Screen Extension Issue**
+| Table | PK | SK | Notes |
+|-------|----|----|-------|
+| `users` | userID | — | GSIs: appleUserID-index, username-index |
+| `comments` | urlString | commentID | GSI: userID-index |
+| `saved-webpages` | userID | urlString | User bookmarks only |
+| `webpages-meta` | urlString | — | Auto-upserted on comment POST; powers TrendPageView |
 
-Before starting 1.1.1 feature work, you must:
+## Vercel API
 
-1. **Test on physical iPhone device**
-   - Launch current stable version (1.1.0)
-   - Document the screen extension issue (content extending past screen boundaries)
-   - Take screenshots/notes of the problem
-   - Report findings back to tracking tab
+Base URL: `https://vercel-backend-azure-three.vercel.app`
 
-2. **Compare with Simulator behavior**
-   - Test same version on iOS Simulator
-   - Verify that issue does NOT occur in simulator
-   - Document differences in behavior
+- `POST/GET /api/users`
+- `GET/POST/DELETE /api/comments`
+- `GET/POST/DELETE /api/saved-webpages`
+- `GET /api/pages` — `?trending=true` or `?urlString=X`
 
-3. **Root Cause Analysis**
-   - Investigate why physical device behaves differently than simulator
-   - Common causes to check:
-     - Safe area insets not being respected
-     - Frame calculations using wrong bounds
-     - Constraint issues with device-specific layouts
-     - Status bar/notch handling
-   - Check layout constraints in relevant view files
+## What's Next (1.4.0)
 
-4. **Fix and Verify**
-   - Implement fix for screen extension issue
-   - Test on both physical device and simulator
-   - Ensure fix doesn't break existing functionality
-   - Report completion to tracking tab
-
-### After Fixing Current Issue: Proceed to 1.1.1 Vertical Swipe
-
-See `/docs/MVP_ROADMAP.md` for:
-- Feature requirements
-- Technical implementation approach
-- Files to modify
-- Success criteria
-
-## Progress Tracking
-
-Updates will be recorded here by the tracking tab based on reports from the development tab.
-
-**Status**: Ready to start 1.1.1 investigation and development
-
-## Key Files
-- `/docs/MVP_ROADMAP.md` - Project roadmap and technical context
-- Relevant view files will be identified during testing
+- Comment likes + webpage likes (new DynamoDB tables)
+- User profiles (photo, bio)
+- Follows, blocks, mutes
+- JWT token verification in Vercel (security hardening)
+- Xcode project rename: DumFlow → Shtell

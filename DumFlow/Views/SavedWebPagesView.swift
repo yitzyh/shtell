@@ -34,7 +34,7 @@ struct SavedWebPagesView: View {
                             let date1 = webPageViewModel.contentState.webPageSaveDates[webPage1.urlString] ?? Date.distantPast
                             let date2 = webPageViewModel.contentState.webPageSaveDates[webPage2.urlString] ?? Date.distantPast
                             return date1 > date2
-                        }, id: \.id.recordName) { webPage in
+                        }, id: \.id) { webPage in
                             WebPageRowView(
                                 webPage: webPage,
                                 commentsUrlString: Binding(

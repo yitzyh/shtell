@@ -61,10 +61,10 @@ struct ParentWebPageRowView: View {
 //                        webPageViewModel.toggleLike(on: webPage)
                     }
 
-                Text("\(webPage.likeCount + (isLiked ? 1 : 0))")
+                Text("\(isLiked ? 1 : 0)")
                     .font(.system(.footnote, weight: .light))
                     .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.4), value: webPage.likeCount + (isLiked ? 1 : 0))
+                    .animation(.smooth(duration: 0.4), value: isLiked)
             }
 
             // Save button and count
@@ -78,10 +78,10 @@ struct ParentWebPageRowView: View {
 //                        webPageViewModel.toggleSave(on: webPage)
                     }
 
-                Text("\(webPage.saveCount + (isSaved ? 1 : 0))")
+                Text("\(isSaved ? 1 : 0)")
                     .font(.system(.footnote, weight: .light))
                     .contentTransition(.numericText())
-                    .animation(.smooth(duration: 0.4), value: webPage.saveCount + (isSaved ? 1 : 0))
+                    .animation(.smooth(duration: 0.4), value: isSaved)
             }
         }
         .padding(.vertical, 8)

@@ -71,7 +71,7 @@ class ContentMappingService {
         ]
         
         let bestMatch = scores.max { $0.1 < $1.1 }
-        return bestMatch?.1 > 0 ? bestMatch!.0 : "general"
+        return (bestMatch?.1 ?? 0) > 0 ? bestMatch!.0 : "general"
     }
     
     func mapContentToCategory(source: String, tags: [String], category: String? = nil) -> String {

@@ -108,8 +108,18 @@ class PreloadedWebViewManager: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// Initialize WebViews for the first batch of items
+    /// Initialize WebViews for the first batch of items — only runs once.
     func initializeWebViews() {
+        // Already initialized — just re-attach scroll monitoring without
+        // overwriting webBrowser.urlString (user may have navigated away).
+        guard webViewPool.isEmpty else {
+            // Re-point wkWebView in case the pool was set up before dependencies arrived.
+            if currentIndex < webViewPool.count {
+                webBrowser?.wkWebView = webViewPool[currentIndex].webView
+            }
+            return
+        }
+
         guard let items = browseForwardViewModel?.displayedItems,
               !items.isEmpty else {
             return
@@ -133,13 +143,11 @@ class PreloadedWebViewManager: ObservableObject {
             webView.load(URLRequest(url: url))
             wrapper.isLoaded = true
 
-
             webViewPool.append(wrapper)
         }
 
         // Monitor scroll position of current WebView
         updateScrollMonitoring()
-
     }
 
     /// The content item index the pool is currently showing.
