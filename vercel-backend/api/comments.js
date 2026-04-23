@@ -60,6 +60,46 @@ async function fetchMetadata(url) {
   }
 }
 
+// ---- User color enrichment ----
+
+async function enrichWithUserColors(comments) {
+  if (!comments || comments.length === 0) return comments;
+
+  const uniqueUserIDs = [...new Set(comments.map(c => c.userID).filter(Boolean))];
+  if (uniqueUserIDs.length === 0) return comments;
+
+  // BatchGetItem allows max 100 keys per call
+  const chunks = [];
+  for (let i = 0; i < uniqueUserIDs.length; i += 100) {
+    chunks.push(uniqueUserIDs.slice(i, i + 100));
+  }
+
+  const colorMap = {};
+  for (const chunk of chunks) {
+    const keys = chunk.map(id => ({ userID: { S: id } }));
+    const result = await dynamodb.batchGetItem({
+      RequestItems: {
+        [TABLES.USERS]: {
+          Keys: keys,
+          ProjectionExpression: 'userID, avatarColor1, avatarColor2'
+        }
+      }
+    }).promise();
+
+    const items = (result.Responses && result.Responses[TABLES.USERS]) || [];
+    for (const item of items) {
+      const u = unmarshall(item);
+      colorMap[u.userID] = { avatarColor1: u.avatarColor1 || null, avatarColor2: u.avatarColor2 || null };
+    }
+  }
+
+  return comments.map(c => ({
+    ...c,
+    avatarColor1: colorMap[c.userID]?.avatarColor1 ?? null,
+    avatarColor2: colorMap[c.userID]?.avatarColor2 ?? null,
+  }));
+}
+
 // ---- Handler ----
 
 export default async function handler(req, res) {
@@ -78,10 +118,11 @@ export default async function handler(req, res) {
           TableName: TABLES.COMMENTS,
           Limit: 200
         }).promise();
-        const comments = (result.Items || [])
+        const raw = (result.Items || [])
           .map(unmarshall)
           .sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated))
           .slice(0, parseInt(limit) || 50);
+        const comments = await enrichWithUserColors(raw);
         return res.status(200).json({ comments });
       }
 
@@ -92,12 +133,50 @@ export default async function handler(req, res) {
           KeyConditionExpression: 'userID = :userID',
           ExpressionAttributeValues: { ':userID': { S: userID } }
         }).promise();
-        const comments = (result.Items || []).map(unmarshall);
+        const enriched = await enrichWithUserColors((result.Items || []).map(unmarshall));
+        return res.status(200).json({ comments: enriched });
+      }
+
+      if (req.query.domain) {
+        const domain = req.query.domain;
+        // Find all URLs for this domain from webpages-meta
+        const pagesResult = await dynamodb.scan({
+          TableName: TABLES.PAGES,
+          FilterExpression: '#dm = :domain',
+          ExpressionAttributeNames: { '#dm': 'domain' },
+          ExpressionAttributeValues: { ':domain': { S: domain } }
+        }).promise();
+
+        const urlStrings = (pagesResult.Items || [])
+          .map(unmarshall)
+          .map(p => p.urlString)
+          .filter(Boolean)
+          .slice(0, 20);
+
+        if (urlStrings.length === 0) return res.status(200).json({ comments: [] });
+
+        const commentArrays = await Promise.all(
+          urlStrings.map(url =>
+            dynamodb.query({
+              TableName: TABLES.COMMENTS,
+              KeyConditionExpression: 'urlString = :url',
+              ExpressionAttributeValues: { ':url': { S: url } },
+              ScanIndexForward: false,
+              Limit: 10
+            }).promise().then(r => (r.Items || []).map(unmarshall))
+          )
+        );
+
+        const flatComments = commentArrays.flat()
+          .sort((a, b) => b.dateCreated.localeCompare(a.dateCreated))
+          .slice(0, 50);
+        const comments = await enrichWithUserColors(flatComments);
+
         return res.status(200).json({ comments });
       }
 
       if (!urlString) {
-        return res.status(400).json({ error: 'Provide urlString or userID query param' });
+        return res.status(400).json({ error: 'Provide urlString, userID, or domain query param' });
       }
 
       const result = await dynamodb.query({
@@ -106,8 +185,8 @@ export default async function handler(req, res) {
         ExpressionAttributeValues: { ':urlString': { S: urlString } }
       }).promise();
 
-      const comments = (result.Items || []).map(unmarshall);
-      return res.status(200).json({ comments });
+      const enriched = await enrichWithUserColors((result.Items || []).map(unmarshall));
+      return res.status(200).json({ comments: enriched });
     }
 
     if (req.method === 'POST') {
@@ -200,6 +279,28 @@ export default async function handler(req, res) {
         TableName: TABLES.COMMENTS,
         Key: marshall({ urlString, commentID })
       }).promise();
+
+      // Decrement commentCount in webpages-meta. If it reaches 0, delete the row
+      // so the page no longer appears in TrendPageView.
+      try {
+        const updated = await dynamodb.updateItem({
+          TableName: TABLES.PAGES,
+          Key: { urlString: { S: urlString } },
+          UpdateExpression: 'ADD commentCount :neg',
+          ExpressionAttributeValues: { ':neg': { N: '-1' } },
+          ReturnValues: 'UPDATED_NEW',
+        }).promise();
+        const newCount = Number(updated.Attributes?.commentCount?.N ?? 0);
+        if (newCount <= 0) {
+          await dynamodb.deleteItem({
+            TableName: TABLES.PAGES,
+            Key: { urlString: { S: urlString } },
+          }).promise();
+        }
+      } catch (pagesErr) {
+        console.error('Pages decrement failed (non-fatal):', pagesErr.message);
+      }
+
       return res.status(200).json({ deleted: true });
     }
 
