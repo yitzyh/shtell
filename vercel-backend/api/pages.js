@@ -32,10 +32,11 @@ export default async function handler(req, res) {
         TableName: TABLES.PAGES
       }).promise();
 
+      // Return all pages with comments, sorted by most recent — client handles display sorting.
       const pages = (result.Items || [])
         .map(unmarshall)
-        .sort((a, b) => (b.commentCount || 0) - (a.commentCount || 0))
-        .slice(0, 20);
+        .filter(p => p.commentCount > 0)
+        .sort((a, b) => (b.lastCommentAt || '').localeCompare(a.lastCommentAt || ''));
 
       return res.status(200).json({ pages });
     }
